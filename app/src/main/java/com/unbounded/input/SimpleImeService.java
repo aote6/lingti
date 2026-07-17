@@ -1,0 +1,227 @@
+package com.unbounded.input;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.inputmethodservice.InputMethodService;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.InputConnection;
+import android.widget.FrameLayout;
+import java.util.ArrayList;
+import java.util.List;
+
+public class SimpleImeService extends InputMethodService {
+
+    @Override
+    public boolean onEvaluateInputViewShown() {
+        return true;
+    }
+
+    @Override
+    public View onCreateInputView() {
+        FrameLayout container = new FrameLayout(this);
+        int heightPx = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 280, getResources().getDisplayMetrics());
+        container.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, heightPx));
+
+        NineKeyKeyboard keyboard = new NineKeyKeyboard(this);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+        lp.gravity = Gravity.BOTTOM;
+        keyboard.setLayoutParams(lp);
+        container.addView(keyboard);
+        return container;
+    }
+
+    private class NineKeyKeyboard extends View {
+        private List<KeySlot> keys;
+        private Paint bgPaint, textPaint, subPaint;
+        private Vibrator vibrator;
+        private KeySlot activeKey;
+        private float downX, downY;
+        private boolean isLongPress, isSwiping;
+
+        private static final int ROWS = 4;
+        private static final int COLS = 3;
+        private static final int KEY_PADDING = 3;
+        private static final int SWIPE_THRESHOLD = 45;
+        private static final int LONG_PRESS_MS = 350;
+
+        public NineKeyKeyboard(Context context) {
+            super(context);
+            setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT));
+            bgPaint = new Paint(); bgPaint.setAntiAlias(true);
+            textPaint = new Paint();
+            textPaint.setColor(Color.WHITE);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setAntiAlias(true);
+            subPaint = new Paint();
+            subPaint.setColor(Color.rgb(140, 140, 140));
+            subPaint.setTextAlign(Paint.Align.CENTER);
+            subPaint.setAntiAlias(true);
+            vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            keys = new ArrayList<>();
+            initKeys();
+        }
+
+        private void initKeys() {
+            keys.clear();
+            // 格式：{tap(字母), swipeUp(数字/符号), swipeDown, swipeLeft, longPress}
+            String[][] labels = {
+                {"A", "1", "~", "`", "Esc"},
+                {"B", "2", "@", "#", "$", "Tab"},
+                {"C", "3", "%", "^", "&", "/"},
+                {"D", "4", "*", "(", ")", "-"},
+                {"E", "5", "_", "+", "=", "{"},
+                {"F", "6", "[", "]", "\\", "}"},
+                {"G", "7", "<", ">", "|", ":"},
+                {"H", "8", "\"", "'", ";", ","},
+                {"I", "9", ".", "?", "!", "Enter"},
+                {"*", "*", "+", "-", "/", "Del"},
+                {"0", "空格", "0", ".", ",", "."},
+                {"#", "#", "布局", "", "", "布局"},
+            };
+            int[][] gridIndex = {{0,1,2},{3,4,5},{6,7,8},{9,10,11}};
+            for (int row = 0; row < ROWS; row++) {
+                for (int col = 0; col < COLS; col++) {
+                    int idx = gridIndex[row][col];
+                    KeySlot key = new KeySlot();
+                    key.row = row; key.col = col;
+                    key.tap = labels[idx][0];
+                    key.swipeUp = labels[idx][1];
+                    key.swipeDown = labels[idx][2];
+                    key.swipeLeft = labels[idx][3];
+                    key.longPress = labels[idx][4];
+                    keys.add(key);
+                }
+            }
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (keys.isEmpty()) return;
+            float keyW = (float) getWidth() / COLS;
+            float keyH = (float) getHeight() / ROWS;
+            textPaint.setTextSize(keyH * 0.3f);
+            subPaint.setTextSize(keyH * 0.15f);
+            for (KeySlot key : keys) {
+                float left = key.col * keyW + KEY_PADDING;
+                float top = key.row * keyH + KEY_PADDING;
+                float right = (key.col + 1) * keyW - KEY_PADDING;
+                float bottom = (key.row + 1) * keyH - KEY_PADDING;
+                key.rect.set((int) left, (int) top, (int) right, (int) bottom);
+                bgPaint.setColor(key == activeKey ? Color.rgb(70, 70, 70) : Color.rgb(42, 42, 42));
+                canvas.drawRoundRect(left, top, right, bottom, 6, 6, bgPaint);
+                float cx = (left + right) / 2f;
+                float cy = (top + bottom) / 2f;
+                // 主标签（字母，居中大号）
+                canvas.drawText(key.tap, cx, cy + textPaint.getTextSize() / 3f, textPaint);
+                // 上滑提示（数字，顶部小号）
+                subPaint.setColor(Color.rgb(100, 200, 255));
+                if (key.swipeUp != null && !key.swipeUp.isEmpty())
+                    canvas.drawText(key.swipeUp, cx, top + keyH * 0.2f, subPaint);
+                subPaint.setColor(Color.rgb(140, 140, 140));
+                if (key.swipeDown != null && !key.swipeDown.isEmpty())
+                    canvas.drawText(key.swipeDown, cx, bottom - keyH * 0.06f, subPaint);
+                if (key.swipeLeft != null && !key.swipeLeft.isEmpty())
+                    canvas.drawText(key.swipeLeft, left + keyW * 0.16f, cy + subPaint.getTextSize() / 3f, subPaint);
+                if (key.longPress != null && !key.longPress.isEmpty()) {
+                    subPaint.setColor(Color.rgb(255, 180, 80));
+                    canvas.drawText(key.longPress, cx, bottom - keyH * 0.06f, subPaint);
+                }
+            }
+        }
+
+        private KeySlot findKey(float x, float y) {
+            for (KeySlot key : keys)
+                if (key.rect.contains((int) x, (int) y)) return key;
+            return null;
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX = event.getX(); downY = event.getY();
+                    activeKey = findKey(downX, downY);
+                    isLongPress = false; isSwiping = false;
+                    if (activeKey != null) { invalidate(); postDelayed(longPressRunnable, LONG_PRESS_MS); }
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    if (activeKey == null || isLongPress) return true;
+                    float dx = event.getX() - downX;
+                    float dy = event.getY() - downY;
+                    if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+                        isSwiping = true; removeCallbacks(longPressRunnable);
+                        if (Math.abs(dy) > Math.abs(dx)) {
+                            executeGesture(dy < -SWIPE_THRESHOLD ? "swipe_up" : "swipe_down");
+                        } else if (dx < -SWIPE_THRESHOLD) {
+                            executeGesture("swipe_left");
+                        }
+                        activeKey = null; invalidate();
+                    }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    removeCallbacks(longPressRunnable);
+                    if (activeKey != null && !isSwiping && !isLongPress) executeGesture("tap");
+                    activeKey = null; isLongPress = false; isSwiping = false; invalidate();
+                    return true;
+            }
+            return super.onTouchEvent(event);
+        }
+
+        private final Runnable longPressRunnable = new Runnable() {
+            public void run() {
+                if (activeKey != null && !isSwiping) {
+                    isLongPress = true; executeGesture("long_press");
+                    activeKey = null; invalidate();
+                }
+            }
+        };
+
+        private void executeGesture(String gesture) {
+            if (activeKey == null) return;
+            String text = null;
+            switch (gesture) {
+                case "tap": text = activeKey.tap; break;
+                case "swipe_up": text = activeKey.swipeUp; break;
+                case "swipe_down": text = activeKey.swipeDown; break;
+                case "swipe_left": text = activeKey.swipeLeft; break;
+                case "long_press": text = activeKey.longPress; break;
+            }
+            if (text == null || text.isEmpty()) return;
+            InputConnection ic = getCurrentInputConnection();
+            if (ic == null) return;
+            switch (text) {
+                case "空格": ic.commitText(" ", 1); break;
+                case "Enter": ic.commitText("\n", 1); break;
+                case "Del": ic.deleteSurroundingText(1, 0); break;
+                case "Tab": ic.commitText("\t", 1); break;
+                case "Esc": ic.commitText("[Esc]", 1); break;
+                case "布局": break;
+                default: ic.commitText(text, 1); break;
+            }
+            if (vibrator != null)
+                vibrator.vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE));
+        }
+    }
+
+    static class KeySlot {
+        int row, col;
+        Rect rect = new Rect();
+        String tap, swipeUp, swipeDown, swipeLeft, longPress;
+    }
+}
