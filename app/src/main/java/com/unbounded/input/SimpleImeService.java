@@ -13,12 +13,70 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class SimpleImeService extends InputMethodService {
+
+    private static File logFile;
+
+    public static void log(Context ctx, String msg) {
+        try {
+            if (logFile == null) {
+                File dir = ctx.getExternalFilesDir(null);
+                if (dir != null) {
+                    logFile = new File(dir, "lingti_debug.log");
+                }
+            }
+            if (logFile != null) {
+                String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+                FileOutputStream fos = new FileOutputStream(logFile, true);
+                fos.write((time + " [INFO] " + msg + "\n").getBytes());
+                fos.close();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                try {
+                    StringWriter sw = new StringWriter();
+                    PrintWriter pw = new PrintWriter(sw);
+                    e.printStackTrace(pw);
+                    String stackTrace = sw.toString();
+
+                    if (logFile == null) {
+                        logFile = new File(getExternalFilesDir(null), "lingti_debug.log");
+                    }
+                    FileOutputStream fos = new FileOutputStream(logFile, true);
+                    String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+                    fos.write((time + " [CRASH] Thread: " + t.getName() + "\n" + stackTrace + "\n").getBytes());
+                    fos.close();
+                } catch (Exception ignored) {}
+
+                android.os.Process.killProcess(android.os.Process.myPid());
+                System.exit(10);
+            }
+        });
+
+        log(this, "SimpleImeService onCreate 初始化成功");
+    }
 
     @Override
     public boolean onEvaluateInputViewShown() {
@@ -26,8 +84,21 @@ public class SimpleImeService extends InputMethodService {
     }
 
     @Override
+    public void onStartInputView(EditorInfo info, boolean restarting) {
+        super.onStartInputView(info, restarting);
+        log(this, "onStartInputView 唤起键盘");
+    }
+
+    @Override
     public View onCreateInputView() {
-        FrameLayout container = new FrameLayout(this);
+        log(this, "onCreateInputView 开始构建 UI");
+        FrameLayout container = new FrameLayout(this) {
+            @Override
+            public boolean onTouchEvent(MotionEvent event) {
+                return true;
+            }
+        };
+
         int heightPx = (int) TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP, 280, getResources().getDisplayMetrics());
         container.setLayoutParams(new ViewGroup.LayoutParams(
@@ -38,6 +109,7 @@ public class SimpleImeService extends InputMethodService {
                 ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
         lp.gravity = Gravity.BOTTOM;
         keyboard.setLayoutParams(lp);
+
         container.addView(keyboard);
         return container;
     }
@@ -47,17 +119,16 @@ public class SimpleImeService extends InputMethodService {
         private Paint bgPaint, textPaint, subPaint;
         private Vibrator vibrator;
         private KeySlot activeKey;
-        private float downX, downY;
-        private boolean isLongPress, isSwiping;
+        private boolean isGestureConsumed = false;
+        private GestureRecognizer recognizer;
 
         private static final int ROWS = 4;
         private static final int COLS = 3;
         private static final int KEY_PADDING = 3;
-        private static final int SWIPE_THRESHOLD = 45;
-        private static final int LONG_PRESS_MS = 350;
 
         public NineKeyKeyboard(Context context) {
             super(context);
+
             setLayoutParams(new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT));
@@ -71,13 +142,13 @@ public class SimpleImeService extends InputMethodService {
             subPaint.setTextAlign(Paint.Align.CENTER);
             subPaint.setAntiAlias(true);
             vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            recognizer = new GestureRecognizer();
             keys = new ArrayList<>();
             initKeys();
         }
 
         private void initKeys() {
             keys.clear();
-            // 格式：{tap(字母), swipeUp(数字/符号), swipeDown, swipeLeft, longPress}
             String[][] labels = {
                 {"A", "1", "~", "`", "Esc"},
                 {"B", "2", "@", "#", "$", "Tab"},
@@ -122,13 +193,14 @@ public class SimpleImeService extends InputMethodService {
                 float right = (key.col + 1) * keyW - KEY_PADDING;
                 float bottom = (key.row + 1) * keyH - KEY_PADDING;
                 key.rect.set((int) left, (int) top, (int) right, (int) bottom);
-                bgPaint.setColor(key == activeKey ? Color.rgb(70, 70, 70) : Color.rgb(42, 42, 42));
+
+                boolean isPressed = (key == activeKey && !isGestureConsumed);
+                bgPaint.setColor(isPressed ? Color.rgb(70, 70, 70) : Color.rgb(42, 42, 42));
                 canvas.drawRoundRect(left, top, right, bottom, 6, 6, bgPaint);
+
                 float cx = (left + right) / 2f;
                 float cy = (top + bottom) / 2f;
-                // 主标签（字母，居中大号）
                 canvas.drawText(key.tap, cx, cy + textPaint.getTextSize() / 3f, textPaint);
-                // 上滑提示（数字，顶部小号）
                 subPaint.setColor(Color.rgb(100, 200, 255));
                 if (key.swipeUp != null && !key.swipeUp.isEmpty())
                     canvas.drawText(key.swipeUp, cx, top + keyH * 0.2f, subPaint);
@@ -145,66 +217,96 @@ public class SimpleImeService extends InputMethodService {
         }
 
         private KeySlot findKey(float x, float y) {
-            for (KeySlot key : keys)
-                if (key.rect.contains((int) x, (int) y)) return key;
-            return null;
+            KeySlot closest = null;
+            float minDistance = Float.MAX_VALUE;
+            for (KeySlot key : keys) {
+                if (key.rect.contains((int) x, (int) y)) {
+                    return key;
+                }
+                float cx = key.rect.centerX();
+                float cy = key.rect.centerY();
+                float dist = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closest = key;
+                }
+            }
+            return closest;
         }
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
+            float x = event.getX();
+            float y = event.getY();
+
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
-                    downX = event.getX(); downY = event.getY();
-                    activeKey = findKey(downX, downY);
-                    isLongPress = false; isSwiping = false;
-                    if (activeKey != null) { invalidate(); postDelayed(longPressRunnable, LONG_PRESS_MS); }
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    if (activeKey == null || isLongPress) return true;
-                    float dx = event.getX() - downX;
-                    float dy = event.getY() - downY;
-                    if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
-                        isSwiping = true; removeCallbacks(longPressRunnable);
-                        if (Math.abs(dy) > Math.abs(dx)) {
-                            executeGesture(dy < -SWIPE_THRESHOLD ? "swipe_up" : "swipe_down");
-                        } else if (dx < -SWIPE_THRESHOLD) {
-                            executeGesture("swipe_left");
-                        }
-                        activeKey = null; invalidate();
+                    activeKey = findKey(x, y);
+                    isGestureConsumed = false;
+                    if (activeKey != null) {
+                        recognizer.onDown(x, y);
+                        invalidate();
                     }
                     return true;
+
+                case MotionEvent.ACTION_MOVE:
+                    if (activeKey == null) return true;
+                    if (isGestureConsumed) return true;
+
+                    GestureRecognizer.Gesture g = recognizer.onMove(x, y);
+                    if (g != GestureRecognizer.Gesture.NONE) {
+                        SimpleImeService.log(getContext(), "触发手势: " + g);
+                        executeGesture(g);
+                        isGestureConsumed = true;
+                        invalidate();
+                    } else if (recognizer.shouldCheckLongPress()) {
+                        if (recognizer.checkLongPress() != GestureRecognizer.Gesture.NONE) {
+                            SimpleImeService.log(getContext(), "触发长按");
+                            executeGesture(GestureRecognizer.Gesture.LONG_PRESS);
+                            isGestureConsumed = true;
+                            invalidate();
+                        }
+                    }
+                    return true;
+
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
-                    removeCallbacks(longPressRunnable);
-                    if (activeKey != null && !isSwiping && !isLongPress) executeGesture("tap");
-                    activeKey = null; isLongPress = false; isSwiping = false; invalidate();
+                    if (activeKey != null && !isGestureConsumed) {
+                        GestureRecognizer.Gesture finalGesture = recognizer.onUp();
+                        SimpleImeService.log(getContext(), "手指抬起，最终手势: " + finalGesture);
+                        if (finalGesture != GestureRecognizer.Gesture.NONE) {
+                            executeGesture(finalGesture);
+                        }
+                    }
+                    activeKey = null;
+                    isGestureConsumed = false;
+                    recognizer.reset();
+                    invalidate();
                     return true;
             }
-            return super.onTouchEvent(event);
+            return true;
         }
 
-        private final Runnable longPressRunnable = new Runnable() {
-            public void run() {
-                if (activeKey != null && !isSwiping) {
-                    isLongPress = true; executeGesture("long_press");
-                    activeKey = null; invalidate();
-                }
-            }
-        };
-
-        private void executeGesture(String gesture) {
+        private void executeGesture(GestureRecognizer.Gesture gesture) {
             if (activeKey == null) return;
             String text = null;
             switch (gesture) {
-                case "tap": text = activeKey.tap; break;
-                case "swipe_up": text = activeKey.swipeUp; break;
-                case "swipe_down": text = activeKey.swipeDown; break;
-                case "swipe_left": text = activeKey.swipeLeft; break;
-                case "long_press": text = activeKey.longPress; break;
+                case TAP: text = activeKey.tap; break;
+                case SWIPE_UP: text = activeKey.swipeUp; break;
+                case SWIPE_DOWN: text = activeKey.swipeDown; break;
+                case SWIPE_LEFT: text = activeKey.swipeLeft; break;
+                case LONG_PRESS: text = activeKey.longPress; break;
             }
             if (text == null || text.isEmpty()) return;
+
+            SimpleImeService.log(getContext(), "准备提交字符: [" + text + "]");
             InputConnection ic = getCurrentInputConnection();
-            if (ic == null) return;
+            if (ic == null) {
+                SimpleImeService.log(getContext(), "警告：InputConnection 为空！");
+                return;
+            }
+
+            ic.beginBatchEdit();
             switch (text) {
                 case "空格": ic.commitText(" ", 1); break;
                 case "Enter": ic.commitText("\n", 1); break;
@@ -214,6 +316,8 @@ public class SimpleImeService extends InputMethodService {
                 case "布局": break;
                 default: ic.commitText(text, 1); break;
             }
+            ic.endBatchEdit();
+
             if (vibrator != null)
                 vibrator.vibrate(VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE));
         }
