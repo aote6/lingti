@@ -9,8 +9,15 @@ import java.util.List;
 
 public class RuleLoader {
 
-    public static List<KeyDef> load(Context context, String fileName) {
-        List<KeyDef> keys = new ArrayList<>();
+    public static class LayoutConfig {
+        public int version;
+        public String layout;
+        public String context;
+        public List<KeyDef> keys = new ArrayList<>();
+    }
+
+    public static LayoutConfig load(Context context, String fileName) {
+        LayoutConfig config = new LayoutConfig();
         try {
             InputStream is = context.getAssets().open(fileName);
             byte[] buffer = new byte[is.available()];
@@ -18,6 +25,15 @@ public class RuleLoader {
             is.close();
             String json = new String(buffer, "UTF-8");
             JSONObject root = new JSONObject(json);
+
+            config.version = root.optInt("version", 1);
+            config.layout = root.optString("layout", "ninekey");
+            config.context = root.optString("context", "chinese");
+
+            if (config.version < 2) {
+                SimpleImeService.log(context, "RuleLoader: 旧版schema v" + config.version + "，请升级配置");
+            }
+
             JSONArray arr = root.getJSONArray("keys");
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject obj = arr.getJSONObject(i);
@@ -28,12 +44,12 @@ public class RuleLoader {
                 key.swipeLeft = parseCommand(obj.optJSONObject("swipeLeft"));
                 key.swipeRight = parseCommand(obj.optJSONObject("swipeRight"));
                 key.longPress = parseCommand(obj.optJSONObject("longPress"));
-                keys.add(key);
+                config.keys.add(key);
             }
         } catch (Exception e) {
             SimpleImeService.log(context, "RuleLoader 加载失败: " + e.getMessage());
         }
-        return keys;
+        return config;
     }
 
     private static Command parseCommand(JSONObject obj) {

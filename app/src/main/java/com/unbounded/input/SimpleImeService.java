@@ -137,8 +137,8 @@ public class SimpleImeService extends InputMethodService {
             }
         };
 
-        List<RuleLoader.KeyDef> loadedDefs = RuleLoader.load(this, "default.json");
-        keyboardView = new NineKeyKeyboard(this, dispatcher, loadedDefs);
+        RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, "default.json");
+        keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.keys);
         keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
         container.addView(keyboardView);
         return container;
