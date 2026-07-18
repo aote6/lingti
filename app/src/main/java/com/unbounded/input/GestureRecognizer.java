@@ -1,6 +1,5 @@
 package com.unbounded.input;
 
-import android.view.MotionEvent;
 
 public class GestureRecognizer {
     public enum Gesture { TAP, SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_RIGHT, LONG_PRESS, NONE }

@@ -3,27 +3,16 @@ package com.unbounded.input;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.graphics.Typeface;
-import java.util.ArrayList;
 import java.util.List;
 
 public class KeyboardRenderer {
-    static final int COLOR_BG = 0xFF000000;
-    static final int COLOR_KEY_BG = 0xFF020705;
-    static final int COLOR_BORDER = 0xFF081C12;
-    static final int COLOR_ACTIVE = 0xFF55EEAA;
-    static final int COLOR_MAIN = 0xFF22CC88;
-    static final int COLOR_SUB = 0xFF1C9E6A;
-    static final int COLOR_SHADOW = 0xFF0A3D28;
-    private static final int COLOR_POPUP_BG = 0xFF030D08;
-
     private final Paint bgPaint, textPaint, borderPaint, popupPaint;
 
     public KeyboardRenderer() {
-        bgPaint = new Paint(); bgPaint.setAntiAlias(true);
-        borderPaint = new Paint(); borderPaint.setStyle(Paint.Style.STROKE); borderPaint.setStrokeWidth(1.5f); borderPaint.setAntiAlias(true);
-        popupPaint = new Paint(); popupPaint.setAntiAlias(true);
-        textPaint = new Paint(); textPaint.setTypeface(Typeface.MONOSPACE); textPaint.setAntiAlias(true);
+        bgPaint = ThemeTokens.newBgPaint();
+        borderPaint = ThemeTokens.newBorderPaint();
+        popupPaint = ThemeTokens.newBgPaint();
+        textPaint = ThemeTokens.newTextPaint();
     }
 
     public static String convertToT9Label(String rawLabel) {
@@ -59,19 +48,17 @@ public class KeyboardRenderer {
                               KeySlot activeKey, boolean isLongPressed,
                               StringBuilder composingDigits, List<String> candidates,
                               List<Rect> candidateRects) {
-        canvas.drawColor(COLOR_BG);
-        // 候选栏分隔线
-        borderPaint.setColor(COLOR_BORDER);
+        canvas.drawColor(ThemeTokens.BG);
+        borderPaint.setColor(ThemeTokens.BORDER);
         canvas.drawLine(0, candidateBarHeight, canvas.getWidth(), candidateBarHeight, borderPaint);
 
-        // 候选词
         candidateRects.clear();
         if (composingDigits.length() > 0) {
             float currentX = 30f;
             textPaint.setTextSize(candidateBarHeight * 0.5f);
             textPaint.setTextAlign(Paint.Align.LEFT);
             float yOffset = candidateBarHeight * 0.65f;
-            textPaint.setColor(COLOR_ACTIVE);
+            textPaint.setColor(ThemeTokens.TEXT_ACCENT);
             for (String cand : candidates) {
                 float w = textPaint.measureText(cand);
                 candidateRects.add(new Rect((int) currentX - 15, 0, (int) (currentX + w + 15), (int) candidateBarHeight));
@@ -80,7 +67,6 @@ public class KeyboardRenderer {
             }
         }
 
-        // 键位
         if (keys.isEmpty()) return;
         float remainingHeight = canvas.getHeight() - candidateBarHeight;
         int rows = keys.size() / NineKeyKeyboard.COLS;
@@ -89,22 +75,21 @@ public class KeyboardRenderer {
             Rect r = k.rect;
             float l = r.left, t = r.top, r_ = r.right, b = r.bottom;
             boolean pressed = (k == activeKey && !isLongPressed);
-            bgPaint.setColor(pressed ? COLOR_SHADOW : COLOR_KEY_BG);
+            bgPaint.setColor(pressed ? ThemeTokens.PRESS_BG : ThemeTokens.SURFACE);
             canvas.drawRect(l, t, r_, b, bgPaint);
-            borderPaint.setColor(pressed ? COLOR_ACTIVE : COLOR_BORDER);
+            borderPaint.setColor(pressed ? ThemeTokens.BORDER_ACTIVE : ThemeTokens.BORDER);
             canvas.drawRect(l, t, r_, b, borderPaint);
             float cx = (l + r_) / 2f, cy = (t + b) / 2f;
-            String rawLabel = cmdLabel(k.tap);
-            String mainStr = convertToT9Label(rawLabel);
+            String mainStr = convertToT9Label(cmdLabel(k.tap));
             if (mainStr != null) {
-                textPaint.setColor(pressed ? COLOR_ACTIVE : COLOR_MAIN);
+                textPaint.setColor(pressed ? ThemeTokens.TEXT_ACCENT : ThemeTokens.TEXT_PRIMARY);
                 textPaint.setTextSize(kh * 0.3f);
                 textPaint.setTextAlign(Paint.Align.CENTER);
                 canvas.drawText(mainStr, cx, cy + kh * 0.08f, textPaint);
             }
             String upNum = cmdLabel(k.swipeUp);
             if (upNum != null && upNum.matches("[0-9]")) {
-                textPaint.setColor(COLOR_SUB);
+                textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
                 textPaint.setTextSize(kh * 0.18f);
                 canvas.drawText(upNum, cx, t + kh * 0.22f, textPaint);
             }
@@ -116,19 +101,26 @@ public class KeyboardRenderer {
         if (items == null) return;
         float boxHeight = candidateBarHeight * 1.2f, boxY = candidateBarHeight + 20f;
         float boxWidth = canvas.getWidth() * 0.85f, boxX = (canvas.getWidth() - boxWidth) / 2f;
-        popupPaint.setColor(COLOR_POPUP_BG); popupPaint.setStyle(Paint.Style.FILL);
+        popupPaint.setColor(ThemeTokens.SURFACE_RAISED);
+        popupPaint.setStyle(Paint.Style.FILL);
         canvas.drawRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, popupPaint);
-        popupPaint.setColor(COLOR_ACTIVE); popupPaint.setStyle(Paint.Style.STROKE); popupPaint.setStrokeWidth(3f);
+        popupPaint.setColor(ThemeTokens.TEXT_ACCENT);
+        popupPaint.setStyle(Paint.Style.STROKE);
+        popupPaint.setStrokeWidth(3f);
         canvas.drawRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, popupPaint);
         float itemWidth = boxWidth / items.length;
-        textPaint.setTextSize(boxHeight * 0.5f); textPaint.setTextAlign(Paint.Align.CENTER);
+        textPaint.setTextSize(boxHeight * 0.5f);
+        textPaint.setTextAlign(Paint.Align.CENTER);
         for (int i = 0; i < items.length; i++) {
             float ix = boxX + i * itemWidth + itemWidth / 2f;
             if (i == selectedIndex) {
-                popupPaint.setColor(COLOR_SHADOW); popupPaint.setStyle(Paint.Style.FILL);
+                popupPaint.setColor(ThemeTokens.PRESS_BG);
+                popupPaint.setStyle(Paint.Style.FILL);
                 canvas.drawRect(boxX + i * itemWidth, boxY, boxX + (i + 1) * itemWidth, boxY + boxHeight, popupPaint);
-                textPaint.setColor(COLOR_ACTIVE);
-            } else textPaint.setColor(COLOR_SUB);
+                textPaint.setColor(ThemeTokens.TEXT_ACCENT);
+            } else {
+                textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+            }
             canvas.drawText(items[i], ix, boxY + boxHeight * 0.65f, textPaint);
         }
     }
