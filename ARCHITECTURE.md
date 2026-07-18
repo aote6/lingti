@@ -1,11 +1,11 @@
 
 灵体 (Unbounded) — 输入系统架构 v2.0
 
-核心理念
+## 核心理念
 
 不是输入法，是输入平台。事件驱动、规则驱动、平台无关的人机输入内核。
 
-架构总览
+## 架构总览
 
 Touch → GestureRecognizer → KeyboardGestureController → Command → KeyboardActionDispatcher → InputEngine → InputConnection
 
@@ -19,7 +19,7 @@ View KeyboardRenderer.java / ThemeTokens 纯绘制：键位、候选栏、气泡
 Executor InputEngine.java Command → InputConnection 执行
 
 
-设计原则
+## 设计原则
 
 · 核心模块不知道业务，业务模块不能修改核心
 · 一致性 > 灵活性
@@ -27,7 +27,7 @@ Executor InputEngine.java Command → InputConnection 执行
 · 删，不是加
 · Command 不使用字符串 type，使用枚举类型化
 
-关键设计决策
+## 关键设计决策
 
 1. Command 类型化
 
@@ -69,7 +69,7 @@ NineKeyKeyboard (246行) 拆分为：
 · 三套配置文件：default.json / default_english.json / default_terminal.json
 
 
-输入模式
+## 输入模式
 
 模式 触发条件 输入逻辑 键位标签
 CHINESE 默认 / 微信等 数字累积 → T9Engine.getCandidates() ABC / DEF / ...
@@ -95,7 +95,7 @@ MultiTapEngine.java：
 Swipe: F1~F4, 方向键, Alt, Del, Enter, PgUp, PgDn
 
 
-场景自动切换
+## 场景自动切换
 
 SimpleImeService.detectContext(EditorInfo) 根据 App 包名返回 context：
 
@@ -113,7 +113,7 @@ context 映射到配置文件：
 
 用户可在设置界面设置默认模式，非终端/编辑器场景使用用户默认。
 
-候选词系统
+## 候选词系统
 
 T9Engine.java：
 
@@ -127,7 +127,7 @@ T9Engine.java：
 · 右上角页码指示器（如 2/3）
 · NineKeyKeyboard 维护 candidatePage 状态
 
-手势系统
+## 手势系统
 
 GestureRecognizer.java：
 
@@ -139,7 +139,7 @@ GestureRecognizer.java：
 手势到命令的映射由 JSON 配置定义，每个 KeySlot 可配置 6 种手势对应不同的 Command。
 
 
-主题系统
+## 主题系统
 
 ThemeTokens.java 集中管理所有视觉常量：
 
@@ -153,7 +153,7 @@ ThemeTokens.java 集中管理所有视觉常量：
 
 所有硬编码颜色已移除，KeyboardRenderer 完全通过 ThemeTokens 引用颜色。
 
-横屏适配
+## 横屏适配
 
 NineKeyKeyboard.detectOrientation() 检测屏幕方向：
 
@@ -163,7 +163,7 @@ NineKeyKeyboard.detectOrientation() 检测屏幕方向：
 布局计算 Math.ceil(keys.size() / cols) 自动适配行数。
 横屏时键位字号放大 1.3 倍补偿。
 
-设置系统
+## 设置系统
 
 SettingsActivity.java：
 
@@ -174,7 +174,7 @@ SettingsActivity.java：
 SimpleImeService.getKeyboardHeight() 读取设置并应用到键盘 View 高度。
 
 
-编译链
+## 编译链
 
 Debug 构建 (build_simple.sh):
 ecj (Java 8) → .class → d8 → classes.dex
@@ -193,7 +193,7 @@ Release 构建 (build_release.sh):
 
 新增 .java 文件需同步更新两个构建脚本的文件列表。
 
-崩溃日志
+## 崩溃日志
 
 SimpleImeService 维护静态日志系统：
 
@@ -202,7 +202,7 @@ SimpleImeService 维护静态日志系统：
 · Thread.setDefaultUncaughtExceptionHandler 捕获未处理异常
 · log() 静态方法供全局调用
 
-项目规模
+## 项目规模
 
 源文件: 22 个 .java
 配置文件: 3 个 assets JSON + 1 个 AndroidManifest.xml
@@ -211,7 +211,7 @@ SimpleImeService 维护静态日志系统：
 编译时间: 5-10 秒
 
 
-已完成路线图
+## 已完成路线图
 
 · 单键输入
 · 单键多手势
@@ -233,7 +233,7 @@ SimpleImeService 维护静态日志系统：
 · Release 打包脚本
 · 崩溃日志系统
 
-下一步计划
+## 下一步计划
 
 · 接入 Rime 引擎（librime jni，需 Termux 交叉编译）
 · T9 外部码表加载（从文件读取词库）
@@ -245,7 +245,7 @@ SimpleImeService 维护静态日志系统：
 · 候选词排序优化（用户词频学习）
 · 设置界面扩展（颜色选择、字体大小）
 
-产品目标
+## 产品目标
 
 学习成本最低，熟练后速度最高的输入系统。
 
