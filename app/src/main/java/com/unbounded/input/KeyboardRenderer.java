@@ -11,22 +11,16 @@ import com.unbounded.input.core.layout.RowSpec;
 
 public class KeyboardRenderer {
 
-    public void drawKeyboard(Canvas canvas, LayoutProfile profile, float candidateBarHeight,
-                             KeyModel activeKey, boolean isLongPressed,
-                             StringBuilder composingDigits, List<String> pageCandidates,
-                             List<Rect> candidateRects, int candidatePage, int totalPages,
-                             String modeLabel) {
+    public void drawKeyboard(Canvas canvas, LayoutProfile profile, float barHeight,
+                             KeyModel activeKey, boolean isLongPressed) {
         int w = canvas.getWidth();
         int h = canvas.getHeight();
 
-        // 候选栏
-        float barY = drawCandidateBar(canvas, w, candidateBarHeight, composingDigits,
-                pageCandidates, candidateRects, candidatePage, totalPages);
         // 模式标签
         Paint labelPaint = ThemeTokens.newTextPaint();
         labelPaint.setTextSize(24f);
         labelPaint.setColor(ThemeTokens.TEXT_ACCENT);
-        canvas.drawText(modeLabel, 8, barY - 6, labelPaint);
+        canvas.drawText("TERM", 8, barHeight + 18, labelPaint);
 
         // 按 LayoutProfile 逐行渲染
         if (profile == null || profile.rows.isEmpty()) return;
@@ -39,10 +33,10 @@ public class KeyboardRenderer {
         }
         if (maxSpan == 0f) maxSpan = 10f;
 
-        float remainingHeight = h - barY;
+        float remainingHeight = h - barHeight;
         float rowH = remainingHeight / rows.size();
         float unit = w / maxSpan;
-        float y = barY;
+        float y = barHeight;
 
         for (RowSpec row : rows) {
             float rowWidth = row.totalSpan() * unit;
@@ -91,50 +85,6 @@ public class KeyboardRenderer {
             }
             y += rowH;
         }
-    }
-
-    private float drawCandidateBar(Canvas canvas, int w, float barHeight,
-                                   StringBuilder composingDigits, List<String> pageCandidates,
-                                   List<Rect> candidateRects, int candidatePage, int totalPages) {
-        Paint bgPaint = ThemeTokens.newBgPaint();
-        bgPaint.setColor(ThemeTokens.SURFACE_RAISED);
-        canvas.drawRect(0, 0, w, barHeight, bgPaint);
-
-        // 拼写中数字
-        Paint textPaint = ThemeTokens.newTextPaint();
-        textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
-        textPaint.setTextSize(18f);
-        String digits = composingDigits.toString();
-        if (!digits.isEmpty()) {
-            canvas.drawText(digits, 8, barHeight * 0.35f, textPaint);
-        }
-
-        // 候选词
-        candidateRects.clear();
-        if (pageCandidates.isEmpty()) return barHeight;
-
-        float itemW = w / (float) pageCandidates.size();
-        textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
-        textPaint.setTextSize(16f);
-        for (int i = 0; i < pageCandidates.size(); i++) {
-            float cx = i * itemW;
-            Rect rect = new Rect((int) cx, (int) (barHeight * 0.4f),
-                    (int) (cx + itemW), (int) barHeight);
-            candidateRects.add(rect);
-            Paint.FontMetrics fm = textPaint.getFontMetrics();
-            float textY = rect.centerY() - (fm.ascent + fm.descent) / 2;
-            canvas.drawText(pageCandidates.get(i), cx + 4, textY, textPaint);
-        }
-
-        // 翻页指示
-        if (totalPages > 1) {
-            textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-            textPaint.setTextSize(12f);
-            String pageInfo = (candidatePage + 1) + "/" + totalPages;
-            canvas.drawText(pageInfo, w - 40, barHeight * 0.35f, textPaint);
-        }
-
-        return barHeight;
     }
 
     public void drawHorizontalPopup(Canvas canvas, float candidateBarHeight,

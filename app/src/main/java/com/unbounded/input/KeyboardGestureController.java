@@ -13,39 +13,20 @@ public class KeyboardGestureController {
     private final List<KeyModel> keys;
     private final KeyboardActionDispatcher dispatcher;
     private final Handler longPressHandler = new Handler(Looper.getMainLooper());
-    private final Handler multiTapTimer = new Handler(Looper.getMainLooper());
     private final GestureRecognizer recognizer = new GestureRecognizer();
 
     private KeyModel activeKey;
     private boolean isGestureConsumed, isLongPressed;
     private float startX, startY;
-    private int longPressSelectedIndex = -1;
-    private String[] currentPopupItems;
     private final Runnable longPressRunnable;
-    private final Runnable multiTapTimeoutRunnable;
-    private boolean isCandidateBarPress = false;
-
     private final SessionAccess session;
     private final int touchSlop;
 
     public interface SessionAccess {
-        StringBuilder composingDigits();
-        List<String> candidates();
-        List<String> visibleCandidates();
-        void resetCandidatePage();
-        List<android.graphics.Rect> candidateRects();
-        float candidateBarHeight();
         void invalidateView();
-        void nextPage();
-        void prevPage();
-        int getTotalCandidatePages();
         NineKeyKeyboard.InputMode getInputMode();
-        MultiTapEngine getMultiTapEngine();
-        void toggleInputMode();
         float getDpScale();
         android.content.Context getKeyboardContext();
-        float getPopupBoxX();
-        float getPopupItemWidth();
     }
 
     public KeyboardGestureController(List<KeyModel> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
@@ -55,20 +36,6 @@ public class KeyboardGestureController {
         Context ctx = session.getKeyboardContext();
         this.touchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
         this.longPressRunnable = new LongPressTask(this);
-        this.multiTapTimeoutRunnable = new Runnable() {
-            public void run() {
-                session.getMultiTapEngine().commitCurrent();
-                String result = session.getMultiTapEngine().getCommitted();
-                session.composingDigits().setLength(0);
-                if (!result.isEmpty()) {
-                    session.composingDigits().append(result);
-                    session.candidates().clear();
-                    session.resetCandidatePage();
-                    session.candidates().add(result);
-                }
-                session.invalidateView();
-            }
-        };
     }
 
     private static class LongPressTask implements Runnable {
@@ -84,23 +51,15 @@ public class KeyboardGestureController {
         }
     }
 
-
-
     public KeyModel getActiveKey() { return activeKey; }
     public boolean isLongPressed() { return isLongPressed; }
-    public String[] getCurrentPopupItems() { return currentPopupItems; }
-    public int getLongPressSelectedIndex() { return longPressSelectedIndex; }
 
     public void reset() {
         if (activeKey != null) activeKey.pressed = false;
         activeKey = null;
         isGestureConsumed = false;
         isLongPressed = false;
-        longPressSelectedIndex = -1;
-        currentPopupItems = null;
-        isCandidateBarPress = false;
         longPressHandler.removeCallbacks(longPressRunnable);
-        multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
     }
 
     private KeyModel findKey(float x, float y) {
@@ -110,53 +69,10 @@ public class KeyboardGestureController {
 
     public boolean onTouchEvent(MotionEvent event) {
         float x = event.getX(), y = event.getY();
-        float barHeight = session.candidateBarHeight();
-        float dp = session.getDpScale();
-        float pageScrollThreshold = 12 * dp;
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startX = x; startY = y; isLongPressed = false; isGestureConsumed = false;
-                isCandidateBarPress = (y < barHeight && session.composingDigits().length() > 0);
-                if (isCandidateBarPress) {
-                    if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-                        session.getMultiTapEngine().commitCurrent();
-                        String committed = session.getMultiTapEngine().getCommitted();
-                        if (!committed.isEmpty()) {
-                            dispatcher.onCommand(new InsertText(committed));
-                            session.getMultiTapEngine().reset();
-                            session.composingDigits().setLength(0);
-                            session.candidates().clear();
-                            session.resetCandidatePage();
-                            session.invalidateView();
-                            return true;
-                        }
-                    }
-                    List<android.graphics.Rect> rects = session.candidateRects();
-                    List<String> visible = session.visibleCandidates();
-                    for (int i = 0; i < rects.size(); i++) {
-                        if (rects.get(i).contains((int) x, (int) y)) {
-                            if (i < visible.size()) {
-                                String chosen = visible.get(i);
-                                int len = session.composingDigits().length();
-                                session.composingDigits().setLength(0);
-                                for (int d = 0; d < len; d++) {
-                                    dispatcher.onCommand(new Backspace());
-                                }
-                                dispatcher.onCommand(new InsertText(chosen));
-                                T9Engine.onCandidateSelected(chosen);
-                            }
-                            session.composingDigits().setLength(0);
-                            session.candidates().clear();
-                            session.resetCandidatePage();
-                            if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-                                session.getMultiTapEngine().reset();
-                            }
-                            session.invalidateView();
-                            return true;
-                        }
-                    }
-                }
                 activeKey = findKey(x, y);
                 if (activeKey != null) {
                     activeKey.pressed = true;
@@ -166,20 +82,8 @@ public class KeyboardGestureController {
                 }
                 return true;
             case MotionEvent.ACTION_MOVE:
-                if (activeKey == null) {
-                    if (startY < barHeight && y < barHeight && session.getTotalCandidatePages() > 1) {
-                        float dy = y - startY;
-                        if (Math.abs(dy) > pageScrollThreshold) {
-                            if (dy > 0) session.nextPage(); else session.prevPage();
-                            startY = y;
-                            session.invalidateView();
-                        }
-                    }
-                    return true;
-                }
-                if (isLongPressed) {
-                    return true;
-                }
+                if (activeKey == null) return true;
+                if (isLongPressed) return true;
                 if (!isGestureConsumed) {
                     float dx = x - startX;
                     float dy = y - startY;
@@ -198,10 +102,8 @@ public class KeyboardGestureController {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 longPressHandler.removeCallbacks(longPressRunnable);
-                if (isLongPressed && currentPopupItems != null && longPressSelectedIndex >= 0) {
-                    dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex]));
-                    
-                    isLongPressed = false; currentPopupItems = null;
+                if (isLongPressed) {
+                    isLongPressed = false;
                     if (activeKey != null) activeKey.pressed = false;
                     activeKey = null;
                     session.invalidateView();
@@ -220,7 +122,6 @@ public class KeyboardGestureController {
     }
 
     private void execGesture(GestureRecognizer.Gesture g) {
-        SimpleImeService.log(null, "execGesture: g=" + g + " label=" + (activeKey != null ? activeKey.label : "null") + " mode=" + session.getInputMode());
         if (activeKey == null || dispatcher == null) return;
         Command cmd = null;
         switch (g) {
@@ -231,43 +132,6 @@ public class KeyboardGestureController {
             case SWIPE_RIGHT: cmd = activeKey.swipeRight; break;
             default: return;
         }
-        if (cmd == null) return;
-
-        if (session.getInputMode() == NineKeyKeyboard.InputMode.TERMINAL) {
-            dispatcher.onCommand(cmd);
-            return;
-        }
-
-        if (g == GestureRecognizer.Gesture.TAP && session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-            String rawText = activeKey.label;
-            if (rawText != null && rawText.matches("[0-9]")) {
-                int digit = Integer.parseInt(rawText);
-                String result = session.getMultiTapEngine().processDigit(digit);
-                session.composingDigits().setLength(0);
-                session.composingDigits().append(result);
-                session.candidates().clear();
-                session.resetCandidatePage();
-                session.candidates().add(result);
-                multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
-                multiTapTimer.postDelayed(multiTapTimeoutRunnable, 800);
-                session.invalidateView();
-                return;
-            }
-        }
-
-        String rawText = activeKey.label;
-        Command tapCmd = activeKey.tap;
-        if (g == GestureRecognizer.Gesture.TAP && tapCmd != null && tapCmd.type == Command.Type.INSERT_TEXT && tapCmd.text != null && tapCmd.text.matches("[0-9]")) {
-            SimpleImeService.log(null, "T9分支进入: tapText=" + tapCmd.text + " label=" + rawText);
-            session.composingDigits().append(tapCmd.text);
-            session.candidates().clear();
-            session.resetCandidatePage();
-            java.util.List<String> cands = T9Engine.getCandidates(session.composingDigits().toString());
-            SimpleImeService.log(null, "候选词数量: " + cands.size() + " digits=" + session.composingDigits().toString());
-            session.candidates().addAll(cands);
-            session.invalidateView();
-            return;
-        }
-        dispatcher.onCommand(cmd);
+        if (cmd != null) dispatcher.onCommand(cmd);
     }
 }

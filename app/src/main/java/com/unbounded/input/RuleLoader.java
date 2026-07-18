@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -21,22 +22,40 @@ public class RuleLoader {
         public int version;
         public String layout;
         public String context;
+        public String activeState;
+        public Map<String, List<List<KeyDef>>> stateRows = new HashMap<>();
+        public Map<String, List<KeyDef>> states = new HashMap<>();
         public List<KeyDef> keys = new ArrayList<>();
+        public boolean hasRows = false;
+
         public List<KeyModel> toKeyModels() {
+            List<KeyDef> activeKeys = keys;
+            if (!states.isEmpty() && activeState != null) {
+                List<KeyDef> stateKeys = states.get(activeState);
+                if (stateKeys != null) activeKeys = stateKeys;
+            }
             List<KeyModel> models = new ArrayList<>();
-            for (KeyDef d : keys) {
-                String id = d.explicitLabel != null ? d.explicitLabel : d.label();
-                float span = d.span > 0 ? d.span : 1f;
-                KeyModel m = new KeyModel(id, id, span, 2, 2, 2, 2);
-                m.tap = d.tap;
-                m.swipeUp = d.swipeUp;
-                m.swipeDown = d.swipeDown;
-                m.swipeLeft = d.swipeLeft;
-                m.swipeRight = d.swipeRight;
-                m.longPress = d.longPress;
-                models.add(m);
+            for (KeyDef d : activeKeys) {
+                models.add(d.toKeyModel());
             }
             return models;
+        }
+
+        public com.unbounded.input.core.layout.LayoutProfile buildProfile() {
+            com.unbounded.input.core.layout.LayoutProfile profile = new com.unbounded.input.core.layout.LayoutProfile(layout);
+            if (hasRows && activeState != null) {
+                List<List<KeyDef>> rows = stateRows.get(activeState);
+                if (rows != null) {
+                    for (List<KeyDef> rowDefs : rows) {
+                        com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
+                        for (KeyDef d : rowDefs) {
+                            row.add(d.toKeyModel());
+                        }
+                        profile.addRow(row);
+                    }
+                }
+            }
+            return profile;
         }
     }
 
@@ -68,32 +87,74 @@ public class RuleLoader {
                 SimpleImeService.log(context, "RuleLoader: 旧版schema v" + config.version + "，请升级配置");
             }
 
-            JSONArray arr = root.getJSONArray("keys");
-            for (int i = 0; i < arr.length(); i++) {
-                JSONObject obj = arr.optJSONObject(i);
-                if (obj == null) continue;
-                KeyDef key = new KeyDef();
-                key.explicitLabel = obj.optString("label", null);
-                key.span = (float) obj.optDouble("span", 1f);
-                key.tap = parseCommand(obj.optJSONObject("tap"));
-                key.swipeUp = parseCommand(obj.optJSONObject("swipeUp"));
-                key.swipeDown = parseCommand(obj.optJSONObject("swipeDown"));
-                key.swipeLeft = parseCommand(obj.optJSONObject("swipeLeft"));
-                key.swipeRight = parseCommand(obj.optJSONObject("swipeRight"));
-                key.longPress = parseCommand(obj.optJSONObject("longPress"));
-                config.keys.add(key);
+            // 解析 states（v3+ 新格式）
+            JSONObject statesObj = root.optJSONObject("states");
+            if (statesObj != null) {
+                for (Iterator<String> it = statesObj.keys(); it.hasNext(); ) {
+                    String stateName = it.next();
+                    JSONObject stateObj = statesObj.getJSONObject(stateName);
+                    // 优先用 rows（二维数组），否则用 keys（一维数组）
+                    JSONArray rowsArr = stateObj.optJSONArray("rows");
+                    if (rowsArr != null) {
+                        config.hasRows = true;
+                        List<List<KeyDef>> rowList = new ArrayList<>();
+                        for (int r = 0; r < rowsArr.length(); r++) {
+                            JSONArray keysArr = rowsArr.optJSONArray(r);
+                            if (keysArr == null) continue;
+                            List<KeyDef> keyList = new ArrayList<>();
+                            for (int i = 0; i < keysArr.length(); i++) {
+                                JSONObject obj = keysArr.optJSONObject(i);
+                                if (obj == null) continue;
+                                keyList.add(parseKeyDef(obj));
+                            }
+                            rowList.add(keyList);
+                        }
+                        config.stateRows.put(stateName, rowList);
+                    } else {
+                        JSONArray keysArr = stateObj.getJSONArray("keys");
+                        List<KeyDef> keyList = new ArrayList<>();
+                        for (int i = 0; i < keysArr.length(); i++) {
+                            JSONObject obj = keysArr.optJSONObject(i);
+                            if (obj == null) continue;
+                            keyList.add(parseKeyDef(obj));
+                        }
+                        config.states.put(stateName, keyList);
+                    }
+                }
+                config.activeState = root.optString("default_state", "letter_lower");
+            } else {
+                // 旧版格式：直接解析顶层 keys
+                JSONArray arr = root.getJSONArray("keys");
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.optJSONObject(i);
+                    if (obj == null) continue;
+                    config.keys.add(parseKeyDef(obj));
+                }
             }
 
             // 只有成功才缓存
             cache.put(fileName, config);
         } catch (Exception e) {
             SimpleImeService.log(context, "RuleLoader 加载失败: " + e.getMessage());
-        java.io.StringWriter sw = new java.io.StringWriter();
-        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
-        e.printStackTrace(pw);
-        SimpleImeService.log(context, sw.toString());
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            SimpleImeService.log(context, sw.toString());
         }
         return config;
+    }
+
+    private static KeyDef parseKeyDef(JSONObject obj) {
+        KeyDef key = new KeyDef();
+        key.explicitLabel = obj.optString("label", null);
+        key.span = (float) obj.optDouble("span", 1f);
+        key.tap = parseCommand(obj.optJSONObject("tap"));
+        key.swipeUp = parseCommand(obj.optJSONObject("swipeUp"));
+        key.swipeDown = parseCommand(obj.optJSONObject("swipeDown"));
+        key.swipeLeft = parseCommand(obj.optJSONObject("swipeLeft"));
+        key.swipeRight = parseCommand(obj.optJSONObject("swipeRight"));
+        key.longPress = parseCommand(obj.optJSONObject("longPress"));
+        return key;
     }
 
     private static Command parseCommand(JSONObject obj) {
@@ -104,6 +165,7 @@ public class RuleLoader {
             case "insert": return Command.insert(text);
             case "backspace": return Command.backspace();
             case "commit": return Command.commit();
+
             case "key_event": {
                 int keyCode = obj.optInt("keyCode", 0);
                 int metaState = obj.optInt("metaState", 0);
@@ -133,10 +195,23 @@ public class RuleLoader {
         public Command swipeRight;
         public Command longPress;
 
+        public KeyModel toKeyModel() {
+            String id = explicitLabel != null ? explicitLabel : label();
+            float s = span > 0 ? span : 1f;
+            KeyModel m = new KeyModel(id, id, s, 2, 2, 2, 2);
+            m.tap = tap;
+            m.swipeUp = swipeUp;
+            m.swipeDown = swipeDown;
+            m.swipeLeft = swipeLeft;
+            m.swipeRight = swipeRight;
+            m.longPress = longPress;
+            return m;
+        }
+
         public String label() {
             if (explicitLabel != null && !explicitLabel.isEmpty()) return explicitLabel;
             if (tap != null && tap.type == Command.Type.INSERT_TEXT && !tap.text.isEmpty()) return tap.text;
-            if (tap != null && tap.type == Command.Type.BACKSPACE) return "⌫";
+            if (tap != null && tap.type == Command.Type.BACKSPACE) return "\u232b";
             if (tap != null) return tap.type.name().toLowerCase();
             return "?";
         }
