@@ -9,6 +9,7 @@ public class KeyboardGestureController {
     private final List<KeySlot> keys;
     private final KeyboardActionDispatcher dispatcher;
     private final Handler longPressHandler = new Handler(Looper.getMainLooper());
+    private final Handler multiTapTimer = new Handler(Looper.getMainLooper());
     private final GestureRecognizer recognizer = new GestureRecognizer();
 
     private KeySlot activeKey;
@@ -17,6 +18,7 @@ public class KeyboardGestureController {
     private int longPressSelectedIndex = -1;
     private String[] currentPopupItems;
     private final Runnable longPressRunnable;
+    private final Runnable multiTapTimeoutRunnable;
 
     private final SessionAccess session;
 
@@ -31,6 +33,7 @@ public class KeyboardGestureController {
         int getTotalCandidatePages();
         NineKeyKeyboard.InputMode getInputMode();
         MultiTapEngine getMultiTapEngine();
+        void toggleInputMode();
     }
 
     public KeyboardGestureController(List<KeySlot> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
@@ -38,6 +41,19 @@ public class KeyboardGestureController {
         this.dispatcher = dispatcher;
         this.session = session;
         this.longPressRunnable = new LongPressTask(this);
+        this.multiTapTimeoutRunnable = new Runnable() {
+            public void run() {
+                session.getMultiTapEngine().commitCurrent();
+                String result = session.getMultiTapEngine().getCommitted();
+                session.composingDigits().setLength(0);
+                if (!result.isEmpty()) {
+                    session.composingDigits().append(result);
+                    session.candidates().clear();
+                    session.candidates().add(result);
+                }
+                session.invalidateView();
+            }
+        };
     }
 
     private static class LongPressTask implements Runnable {
@@ -66,6 +82,7 @@ public class KeyboardGestureController {
         longPressSelectedIndex = -1;
         currentPopupItems = null;
         longPressHandler.removeCallbacks(longPressRunnable);
+        multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
     }
 
     private KeySlot findKey(float x, float y) {
@@ -85,7 +102,6 @@ public class KeyboardGestureController {
                     for (int i = 0; i < rects.size(); i++) {
                         if (rects.get(i).contains((int) x, (int) y)) {
                             if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-                                // 英文模式：点击候选词直接输出
                                 if (i < cands.size()) {
                                     dispatcher.onCommand(new InsertText(cands.get(i)));
                                 }
@@ -166,6 +182,7 @@ public class KeyboardGestureController {
             case SWIPE_LEFT: cmd = activeKey.swipeLeft; break;
             case SWIPE_DOWN: cmd = activeKey.swipeDown; break;
             case SWIPE_RIGHT: cmd = activeKey.swipeRight; break;
+            default: return;
         }
         if (cmd == null) return;
 
@@ -177,8 +194,10 @@ public class KeyboardGestureController {
                 session.composingDigits().setLength(0);
                 session.composingDigits().append(result);
                 session.candidates().clear();
-                // 显示当前 MultiTap 状态作为单个候选
                 session.candidates().add(result);
+                // 重置超时计时器
+                multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
+                multiTapTimer.postDelayed(multiTapTimeoutRunnable, 800);
                 session.invalidateView();
                 return;
             }

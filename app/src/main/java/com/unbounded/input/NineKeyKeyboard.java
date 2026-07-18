@@ -38,10 +38,16 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     }
 
     public void setInputMode(InputMode mode) {
-        this.inputMode = mode;
-        resetSession();
+        if (this.inputMode != mode) {
+            this.inputMode = mode;
+            resetSession();
+        }
     }
     public InputMode getInputMode() { return inputMode; }
+
+    @Override public void toggleInputMode() {
+        setInputMode(inputMode == InputMode.CHINESE ? InputMode.ENGLISH : InputMode.CHINESE);
+    }
 
     @Override public StringBuilder composingDigits() { return composingDigits; }
     @Override public List<String> candidates() { return candidates; }
@@ -110,7 +116,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         renderer.drawKeyboard(canvas, keys, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed(),
                 composingDigits, pageCandidates, candidateRects,
-                candidatePage, totalPages);
+                candidatePage, totalPages, inputMode);
         if (gestureController.isLongPressed() && gestureController.getCurrentPopupItems() != null) {
             renderer.drawHorizontalPopup(canvas, candidateBarHeight,
                     gestureController.getCurrentPopupItems(),

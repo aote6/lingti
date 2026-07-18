@@ -48,7 +48,8 @@ public class KeyboardRenderer {
                               KeySlot activeKey, boolean isLongPressed,
                               StringBuilder composingDigits, List<String> candidates,
                               List<Rect> candidateRects,
-                              int currentPage, int totalPages) {
+                              int currentPage, int totalPages,
+                              NineKeyKeyboard.InputMode inputMode) {
         canvas.drawColor(ThemeTokens.BG);
         borderPaint.setColor(ThemeTokens.BORDER);
         canvas.drawLine(0, candidateBarHeight, canvas.getWidth(), candidateBarHeight, borderPaint);
@@ -67,7 +68,6 @@ public class KeyboardRenderer {
                 currentX += w + 35f;
             }
 
-            // 翻页指示器
             if (totalPages > 1) {
                 float pageY = candidateBarHeight * 0.25f;
                 textPaint.setTextSize(candidateBarHeight * 0.3f);
@@ -77,6 +77,13 @@ public class KeyboardRenderer {
                 canvas.drawText(pageInfo, canvas.getWidth() - 20f, pageY, textPaint);
             }
         }
+
+        // 模式标签（左下角）
+        textPaint.setTextSize(candidateBarHeight * 0.35f);
+        textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+        textPaint.setTextAlign(Paint.Align.LEFT);
+        String modeLabel = inputMode == NineKeyKeyboard.InputMode.CHINESE ? "中" : "EN";
+        canvas.drawText(modeLabel, 12f, candidateBarHeight * 0.55f, textPaint);
 
         if (keys.isEmpty()) return;
         float remainingHeight = canvas.getHeight() - candidateBarHeight;
