@@ -24,7 +24,10 @@ ecj -d $BUILD_DIR/classes \
     $SRC_DIR/GestureRecognizer.java \
     $SRC_DIR/RuleLoader.java \
     $SRC_DIR/T9Engine.java \
+    $SRC_DIR/KeyboardActionDispatcher.java \
     $SRC_DIR/ContinuousDeleteHelper.java \
+    $SRC_DIR/KeyboardRenderer.java \
+    $SRC_DIR/KeyboardGestureController.java \
     $SRC_DIR/NineKeyKeyboard.java \
     $SRC_DIR/SimpleImeService.java \
     $SRC_DIR/MainActivity.java
