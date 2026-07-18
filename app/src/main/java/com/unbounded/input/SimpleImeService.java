@@ -147,7 +147,7 @@ public class SimpleImeService extends InputMethodService {
 
             String configFile = configFileForContext(currentContext);
             RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
-            keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.keys);
+            keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
 
             if ("english".equals(layoutConfig.context)) {
                 keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
@@ -216,7 +216,7 @@ public class SimpleImeService extends InputMethodService {
         };
 
         RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, "default.json");
-        keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.keys);
+        keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
         currentContext = layoutConfig.context;
 
         if ("english".equals(layoutConfig.context)) {

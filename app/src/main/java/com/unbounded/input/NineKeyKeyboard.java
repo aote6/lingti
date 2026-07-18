@@ -9,13 +9,18 @@ import android.view.View;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.unbounded.input.core.layout.KeyModel;
+import com.unbounded.input.core.layout.KeyboardLayout;
+import com.unbounded.input.core.layout.LayoutManager;
+import com.unbounded.input.core.layout.LayoutProfile;
+
 public class NineKeyKeyboard extends View implements KeyboardGestureController.SessionAccess {
     static final int PAD = 2;
     static final int CANDIDATE_PAGE_SIZE = 4;
 
-    private final List<KeySlot> keys = new ArrayList<>();
     private final KeyboardRenderer renderer = new KeyboardRenderer();
     private final KeyboardGestureController gestureController;
+    private final LayoutManager layoutManager = new LayoutManager();
 
     private final StringBuilder composingDigits = new StringBuilder();
     private final List<String> candidates = new ArrayList<>();
@@ -28,15 +33,24 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private InputMode inputMode = InputMode.CHINESE;
     private final MultiTapEngine multiTapEngine = new MultiTapEngine();
 
-    public NineKeyKeyboard(Context context, KeyboardActionDispatcher dispatcher, List<RuleLoader.KeyDef> defs) {
+    public NineKeyKeyboard(Context context, final KeyboardActionDispatcher dispatcher, final List<KeyModel> keyModels) {
         super(context);
-        for (RuleLoader.KeyDef d : defs) {
-            KeySlot k = new KeySlot();
-            k.tap = d.tap; k.swipeUp = d.swipeUp; k.swipeDown = d.swipeDown;
-            k.swipeLeft = d.swipeLeft; k.swipeRight = d.swipeRight; k.longPress = d.longPress;
-            keys.add(k);
+        final LayoutProfile profile = new LayoutProfile("inline");
+        int rows = (int) Math.ceil((float) keyModels.size() / 3);
+        for (int r = 0; r < rows; r++) {
+            com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
+            for (int c = 0; c < 3; c++) {
+                int idx = r * 3 + c;
+                if (idx < keyModels.size()) row.add(keyModels.get(idx));
+            }
+            profile.addRow(row);
         }
-        gestureController = new KeyboardGestureController(keys, dispatcher, this);
+        List<KeyModel> allKeys = profile.allKeys();
+        layoutManager.setLayout(new KeyboardLayout() {
+            public String id() { return "inline"; }
+            public LayoutProfile build() { return profile; }
+        }, getWidth(), getHeight());
+        gestureController = new KeyboardGestureController(allKeys, dispatcher, this);
         detectOrientation();
     }
 
@@ -96,26 +110,9 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         detectOrientation();
-        computeKeyRects(w, h);
-    }
-
-    private void computeKeyRects(int w, int h) {
-        if (keys.isEmpty()) return;
         candidateBarHeight = h * 0.16f;
-        float remainingHeight = h - candidateBarHeight;
-        int rows = (int) Math.ceil((float) keys.size() / cols);
-        float kw = (float) w / cols;
-        float kh = remainingHeight / rows;
-        for (int i = 0; i < keys.size(); i++) {
-            KeySlot k = keys.get(i);
-            int row = i / cols;
-            int col = i % cols;
-            float l = col * kw + PAD;
-            float t = candidateBarHeight + row * kh + PAD;
-            float r = (col + 1) * kw - PAD;
-            float b = candidateBarHeight + (row + 1) * kh - PAD;
-            k.rect.set((int) l, (int) t, (int) r, (int) b);
-        }
+        layoutManager.setCandidateBarHeight(candidateBarHeight);
+        layoutManager.setSize(w, h);
     }
 
     @Override
@@ -125,10 +122,19 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         List<String> pageCandidates = candidates.isEmpty() ? candidates : candidates.subList(start, end);
         int totalPages = getTotalCandidatePages();
 
+        String modeLabel;
+        switch (inputMode) {
+            case ENGLISH: modeLabel = "EN"; break;
+            case TERMINAL: modeLabel = "TERM"; break;
+            default: modeLabel = "中"; break;
+        }
+
+        LayoutProfile profile = layoutManager.getProfile();
+        List<KeyModel> keys = profile != null ? profile.allKeys() : new ArrayList<KeyModel>();
         renderer.drawKeyboard(canvas, keys, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed(),
                 composingDigits, pageCandidates, candidateRects,
-                candidatePage, totalPages, inputMode, cols);
+                candidatePage, totalPages, modeLabel, cols);
         if (gestureController.isLongPressed() && gestureController.getCurrentPopupItems() != null) {
             renderer.drawHorizontalPopup(canvas, candidateBarHeight,
                     gestureController.getCurrentPopupItems(),
@@ -140,9 +146,4 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     public boolean onTouchEvent(MotionEvent event) {
         return gestureController.onTouchEvent(event);
     }
-}
-
-class KeySlot {
-    Rect rect = new Rect();
-    Command tap, swipeUp, swipeDown, swipeLeft, swipeRight, longPress;
 }

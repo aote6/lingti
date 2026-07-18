@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.unbounded.input.core.layout.KeyModel;
+
 public class RuleLoader {
 
     public static class LayoutConfig {
@@ -14,6 +16,20 @@ public class RuleLoader {
         public String layout;
         public String context;
         public List<KeyDef> keys = new ArrayList<>();
+        public List<KeyModel> toKeyModels() {
+            List<KeyModel> models = new ArrayList<>();
+            for (KeyDef d : keys) {
+                KeyModel m = new KeyModel(d.label(), d.label(), 1f, 2, 2, 2, 2);
+                m.tap = d.tap;
+                m.swipeUp = d.swipeUp;
+                m.swipeDown = d.swipeDown;
+                m.swipeLeft = d.swipeLeft;
+                m.swipeRight = d.swipeRight;
+                m.longPress = d.longPress;
+                models.add(m);
+            }
+            return models;
+        }
     }
 
     public static LayoutConfig load(Context context, String fileName) {
@@ -71,5 +87,11 @@ public class RuleLoader {
         public Command swipeLeft;
         public Command swipeRight;
         public Command longPress;
+
+        public String label() {
+            if (tap != null && tap.type == Command.Type.INSERT_TEXT && !tap.text.isEmpty()) return tap.text;
+            if (tap != null) return tap.type.name().toLowerCase();
+            return "?";
+        }
     }
 }

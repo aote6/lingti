@@ -41,7 +41,9 @@ ecj -d $BUILD_DIR/classes \
     $SRC_DIR/core/layout/LayoutProfile.java \
     $SRC_DIR/core/layout/KeyboardLayout.java \
     $SRC_DIR/core/layout/LayoutManager.java \
-    $SRC_DIR/layouts/nine/NineKeyLayout.java
+    $SRC_DIR/layouts/nine/NineKeyLayout.java \
+    $SRC_DIR/layouts/qwerty/Qwerty26Layout.java \
+    $SRC_DIR/layouts/terminal/UnexpectedTerminalLayout.java
 
 echo "=== 处理资源 ==="
 aapt package -f -M $MANIFEST -S $RES_DIR -I $ANDROID_JAR -F $BUILD_DIR/resources.apk

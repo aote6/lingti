@@ -5,6 +5,8 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import java.util.List;
 
+import com.unbounded.input.core.layout.KeyModel;
+
 public class KeyboardRenderer {
     private final Paint bgPaint, textPaint, borderPaint, popupPaint;
 
@@ -15,41 +17,12 @@ public class KeyboardRenderer {
         textPaint = ThemeTokens.newTextPaint();
     }
 
-    public static String convertToT9Label(String rawLabel) {
-        if (rawLabel == null) return null;
-        switch (rawLabel) { case "2": return "ABC"; case "3": return "DEF"; case "4": return "GHI"; case "5": return "JKL"; case "6": return "MNO"; case "7": return "PQRS"; case "8": return "TUV"; case "9": return "WXYZ"; default: return rawLabel; }
-    }
-
-    public static String cmdLabel(Command cmd) {
-        if (cmd == null) return null;
-        if (cmd.type == Command.Type.INSERT_TEXT && !cmd.text.isEmpty()) return cmd.text;
-        return cmd.type.name().toLowerCase();
-    }
-
-    public static String[] getPopupItemsForKey(KeySlot k) {
-        String main = convertToT9Label(cmdLabel(k.tap));
-        if (main == null) return new String[]{"?"};
-        switch (main) {
-            case "ABC": return new String[]{"A","B","C","2","a","b","c"};
-            case "DEF": return new String[]{"D","E","F","3","d","e","f"};
-            case "GHI": return new String[]{"G","H","I","4","g","h","i"};
-            case "JKL": return new String[]{"J","K","L","5","j","k","l"};
-            case "MNO": return new String[]{"M","N","O","6","m","n","o"};
-            case "PQRS": return new String[]{"P","Q","R","S","7"};
-            case "TUV": return new String[]{"T","U","V","8"};
-            case "WXYZ": return new String[]{"W","X","Y","Z","9"};
-            default: return new String[]{main};
-        }
-    }
-
-    public static boolean isNumeric(String str) { return str != null && str.matches("[0-9]"); }
-
-    public void drawKeyboard(Canvas canvas, List<KeySlot> keys, float candidateBarHeight,
-                              KeySlot activeKey, boolean isLongPressed,
+    public void drawKeyboard(Canvas canvas, List<KeyModel> keys, float candidateBarHeight,
+                              KeyModel activeKey, boolean isLongPressed,
                               StringBuilder composingDigits, List<String> candidates,
                               List<Rect> candidateRects,
                               int currentPage, int totalPages,
-                              NineKeyKeyboard.InputMode inputMode, int cols) {
+                              String modeLabel, int cols) {
         canvas.drawColor(ThemeTokens.BG);
         borderPaint.setColor(ThemeTokens.BORDER);
         canvas.drawLine(0, candidateBarHeight, canvas.getWidth(), candidateBarHeight, borderPaint);
@@ -67,26 +40,18 @@ public class KeyboardRenderer {
                 canvas.drawText(cand, currentX, yOffset, textPaint);
                 currentX += w + 35f;
             }
-
             if (totalPages > 1) {
                 float pageY = candidateBarHeight * 0.25f;
                 textPaint.setTextSize(candidateBarHeight * 0.3f);
                 textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
                 textPaint.setTextAlign(Paint.Align.RIGHT);
-                String pageInfo = (currentPage + 1) + "/" + totalPages;
-                canvas.drawText(pageInfo, canvas.getWidth() - 20f, pageY, textPaint);
+                canvas.drawText((currentPage + 1) + "/" + totalPages, canvas.getWidth() - 20f, pageY, textPaint);
             }
         }
 
         textPaint.setTextSize(candidateBarHeight * 0.35f);
         textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
         textPaint.setTextAlign(Paint.Align.LEFT);
-        String modeLabel;
-        switch (inputMode) {
-            case ENGLISH: modeLabel = "EN"; break;
-            case TERMINAL: modeLabel = "TERM"; break;
-            default: modeLabel = "中"; break;
-        }
         canvas.drawText(modeLabel, 12f, candidateBarHeight * 0.55f, textPaint);
 
         if (keys.isEmpty()) return;
@@ -94,47 +59,23 @@ public class KeyboardRenderer {
         int rows = (int) Math.ceil((float) keys.size() / cols);
         float kh = remainingHeight / rows;
         for (int i = 0; i < keys.size(); i++) {
-            KeySlot k = keys.get(i);
+            KeyModel k = keys.get(i);
             Rect r = k.rect;
             float l = r.left, t = r.top, r_ = r.right, b = r.bottom;
-            boolean pressed = (k == activeKey && !isLongPressed);
+            boolean pressed = k.pressed;
             bgPaint.setColor(pressed ? ThemeTokens.PRESS_BG : ThemeTokens.SURFACE);
             canvas.drawRect(l, t, r_, b, bgPaint);
             borderPaint.setColor(pressed ? ThemeTokens.BORDER_ACTIVE : ThemeTokens.BORDER);
             canvas.drawRect(l, t, r_, b, borderPaint);
             float cx = (l + r_) / 2f, cy = (t + b) / 2f;
-
-            String displayLabel;
-            if (inputMode == NineKeyKeyboard.InputMode.TERMINAL) {
-                displayLabel = cmdLabel(k.tap);
-            } else {
-                displayLabel = convertToT9Label(cmdLabel(k.tap));
-            }
-
+            String displayLabel = k.label;
             if (displayLabel != null) {
                 textPaint.setColor(pressed ? ThemeTokens.TEXT_ACCENT : ThemeTokens.TEXT_PRIMARY);
                 float fontSize = kh * (displayLabel.length() > 2 ? 0.22f : 0.3f);
-                // 横屏时键位更小，放大字号补偿
                 if (cols > 3) fontSize *= 1.3f;
                 textPaint.setTextSize(fontSize);
                 textPaint.setTextAlign(Paint.Align.CENTER);
                 canvas.drawText(displayLabel, cx, cy + kh * 0.08f, textPaint);
-            }
-
-            if (inputMode == NineKeyKeyboard.InputMode.TERMINAL) {
-                String upLabel = cmdLabel(k.swipeUp);
-                if (upLabel != null && !upLabel.equals(displayLabel)) {
-                    textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-                    textPaint.setTextSize(kh * (cols > 3 ? 0.18f : 0.16f));
-                    canvas.drawText(upLabel, cx, t + kh * 0.2f, textPaint);
-                }
-            } else {
-                String upNum = cmdLabel(k.swipeUp);
-                if (upNum != null && upNum.matches("[0-9]")) {
-                    textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-                    textPaint.setTextSize(kh * 0.18f);
-                    canvas.drawText(upNum, cx, t + kh * 0.22f, textPaint);
-                }
             }
         }
     }

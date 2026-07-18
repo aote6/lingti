@@ -5,14 +5,16 @@ import android.os.Looper;
 import android.view.MotionEvent;
 import java.util.List;
 
+import com.unbounded.input.core.layout.KeyModel;
+
 public class KeyboardGestureController {
-    private final List<KeySlot> keys;
+    private final List<KeyModel> keys;
     private final KeyboardActionDispatcher dispatcher;
     private final Handler longPressHandler = new Handler(Looper.getMainLooper());
     private final Handler multiTapTimer = new Handler(Looper.getMainLooper());
     private final GestureRecognizer recognizer = new GestureRecognizer();
 
-    private KeySlot activeKey;
+    private KeyModel activeKey;
     private boolean isGestureConsumed, isLongPressed;
     private float startX, startY;
     private int longPressSelectedIndex = -1;
@@ -37,7 +39,7 @@ public class KeyboardGestureController {
         void toggleInputMode();
     }
 
-    public KeyboardGestureController(List<KeySlot> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
+    public KeyboardGestureController(List<KeyModel> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
         this.keys = keys;
         this.dispatcher = dispatcher;
         this.session = session;
@@ -64,19 +66,35 @@ public class KeyboardGestureController {
             if (ctrl.activeKey != null && !ctrl.isGestureConsumed) {
                 ctrl.isLongPressed = true;
                 ctrl.isGestureConsumed = true;
-                ctrl.currentPopupItems = KeyboardRenderer.getPopupItemsForKey(ctrl.activeKey);
+                ctrl.currentPopupItems = getPopupItemsForKey(ctrl.activeKey);
                 ctrl.longPressSelectedIndex = 0;
                 ctrl.session.invalidateView();
             }
         }
     }
 
-    public KeySlot getActiveKey() { return activeKey; }
+    private static String[] getPopupItemsForKey(KeyModel k) {
+        if (k == null || k.label == null) return new String[]{"?"};
+        switch (k.label) {
+            case "ABC": return new String[]{"A","B","C","2","a","b","c"};
+            case "DEF": return new String[]{"D","E","F","3","d","e","f"};
+            case "GHI": return new String[]{"G","H","I","4","g","h","i"};
+            case "JKL": return new String[]{"J","K","L","5","j","k","l"};
+            case "MNO": return new String[]{"M","N","O","6","m","n","o"};
+            case "PQRS": return new String[]{"P","Q","R","S","7"};
+            case "TUV": return new String[]{"T","U","V","8"};
+            case "WXYZ": return new String[]{"W","X","Y","Z","9"};
+            default: return new String[]{k.label};
+        }
+    }
+
+    public KeyModel getActiveKey() { return activeKey; }
     public boolean isLongPressed() { return isLongPressed; }
     public String[] getCurrentPopupItems() { return currentPopupItems; }
     public int getLongPressSelectedIndex() { return longPressSelectedIndex; }
 
     public void reset() {
+        if (activeKey != null) activeKey.pressed = false;
         activeKey = null;
         isGestureConsumed = false;
         isLongPressed = false;
@@ -87,8 +105,8 @@ public class KeyboardGestureController {
         multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
     }
 
-    private KeySlot findKey(float x, float y) {
-        for (KeySlot k : keys) if (k.rect.contains((int) x, (int) y)) return k;
+    private KeyModel findKey(float x, float y) {
+        for (KeyModel k : keys) if (k.rect.contains((int) x, (int) y)) return k;
         return null;
     }
 
@@ -100,7 +118,6 @@ public class KeyboardGestureController {
                 startX = x; startY = y; isLongPressed = false; isGestureConsumed = false;
                 isCandidateBarPress = (y < barHeight && session.composingDigits().length() > 0);
                 if (isCandidateBarPress) {
-                    // 英文模式下长按候选栏确认 MultiTap
                     if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
                         session.getMultiTapEngine().commitCurrent();
                         String committed = session.getMultiTapEngine().getCommitted();
@@ -118,16 +135,12 @@ public class KeyboardGestureController {
                     for (int i = 0; i < rects.size(); i++) {
                         if (rects.get(i).contains((int) x, (int) y)) {
                             if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-                                if (i < cands.size()) {
-                                    dispatcher.onCommand(new InsertText(cands.get(i)));
-                                }
+                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i)));
                                 session.composingDigits().setLength(0);
                                 cands.clear();
                                 session.getMultiTapEngine().reset();
                             } else {
-                                if (i < cands.size()) {
-                                    dispatcher.onCommand(new InsertText(cands.get(i)));
-                                }
+                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i)));
                                 session.composingDigits().setLength(0);
                                 cands.clear();
                             }
@@ -138,6 +151,7 @@ public class KeyboardGestureController {
                 }
                 activeKey = findKey(x, y);
                 if (activeKey != null) {
+                    activeKey.pressed = true;
                     recognizer.onDown(x, y);
                     longPressHandler.postDelayed(longPressRunnable, 450);
                     session.invalidateView();
@@ -174,7 +188,9 @@ public class KeyboardGestureController {
                 longPressHandler.removeCallbacks(longPressRunnable);
                 if (isLongPressed && currentPopupItems != null && longPressSelectedIndex >= 0) {
                     dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex]));
-                    isLongPressed = false; currentPopupItems = null; activeKey = null;
+                    isLongPressed = false; currentPopupItems = null;
+                    if (activeKey != null) activeKey.pressed = false;
+                    activeKey = null;
                     session.invalidateView();
                     return true;
                 }
@@ -182,6 +198,7 @@ public class KeyboardGestureController {
                     GestureRecognizer.Gesture fg = recognizer.onUp();
                     if (fg != GestureRecognizer.Gesture.NONE) execGesture(fg);
                 }
+                if (activeKey != null) activeKey.pressed = false;
                 activeKey = null; isGestureConsumed = false;
                 session.invalidateView();
                 return true;
@@ -208,8 +225,8 @@ public class KeyboardGestureController {
         }
 
         if (g == GestureRecognizer.Gesture.TAP && session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-            String rawText = KeyboardRenderer.cmdLabel(activeKey.tap);
-            if (KeyboardRenderer.isNumeric(rawText)) {
+            String rawText = activeKey.label;
+            if (rawText != null && rawText.matches("[0-9]")) {
                 int digit = Integer.parseInt(rawText);
                 String result = session.getMultiTapEngine().processDigit(digit);
                 session.composingDigits().setLength(0);
@@ -223,8 +240,8 @@ public class KeyboardGestureController {
             }
         }
 
-        String rawText = KeyboardRenderer.cmdLabel(activeKey.tap);
-        if (g == GestureRecognizer.Gesture.TAP && KeyboardRenderer.isNumeric(rawText)) {
+        String rawText = activeKey.label;
+        if (g == GestureRecognizer.Gesture.TAP && rawText != null && rawText.matches("[0-9]")) {
             session.composingDigits().append(rawText);
             session.candidates().clear();
             session.candidates().addAll(T9Engine.getCandidates(session.composingDigits().toString()));
