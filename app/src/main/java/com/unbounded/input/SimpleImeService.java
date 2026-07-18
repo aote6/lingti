@@ -45,7 +45,7 @@ public class SimpleImeService extends InputMethodService {
             return "terminal";
         }
         if (pkg.contains("editor") || pkg.contains("code") || pkg.contains("vscode")) {
-            return "english";
+            return "editor";
         }
         return "chinese";
     }
@@ -56,11 +56,11 @@ public class SimpleImeService extends InputMethodService {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
     }
 
-    private KeyboardLayout resolveLayout(String layoutId, String behavior) {
+    private KeyboardLayout resolveLayout(String layoutId) {
         switch (layoutId) {
             case "qwerty26": return new Qwerty26Layout();
             case "unexpected_terminal": return new UnexpectedTerminalLayout();
-            default: return null; // ninekey 走旧 JSON 加载
+            default: return null;
         }
     }
 
@@ -118,22 +118,22 @@ public class SimpleImeService extends InputMethodService {
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
 
-        String detectedLayout = prefs.getString("default_layout", "ninekey");
-        String detectedBehavior = prefs.getString("default_behavior", "t9");
-        String detectedContext = detectContext(info);
+        String context = detectContext(info);
+        String layout = prefs.getString("default_layout", "ninekey");
+        String behavior = prefs.getString("default_behavior", "t9");
 
-        // 终端场景强制覆盖
-        if ("terminal".equals(detectedContext)) {
-            detectedLayout = "unexpected_terminal";
-            detectedBehavior = "keyevent";
-        } else if ("english".equals(detectedContext) && "ninekey".equals(detectedLayout)) {
-            detectedBehavior = "direct";
+        if ("terminal".equals(context)) {
+            layout = "unexpected_terminal";
+            behavior = "keyevent";
+        } else if ("editor".equals(context)) {
+            layout = "qwerty26";
+            behavior = "direct";
         }
 
-        if (!detectedLayout.equals(currentLayout) || !detectedBehavior.equals(currentBehavior) || keyboardView == null) {
-            currentLayout = detectedLayout;
-            currentBehavior = detectedBehavior;
-            log(this, "切换布局: " + currentLayout + " / " + currentBehavior);
+        if (!layout.equals(currentLayout) || !behavior.equals(currentBehavior) || keyboardView == null) {
+            currentLayout = layout;
+            currentBehavior = behavior;
+            log(this, "场景: " + context + " -> " + currentLayout + "/" + currentBehavior);
             rebuildKeyboard();
         }
 
@@ -164,15 +164,13 @@ public class SimpleImeService extends InputMethodService {
                 }
             };
 
-            KeyboardLayout layout = resolveLayout(currentLayout, currentBehavior);
+            KeyboardLayout layout = resolveLayout(currentLayout);
             NineKeyKeyboard.InputMode mode = resolveInputMode(currentLayout, currentBehavior);
 
             if (layout != null) {
-                // 新布局（Qwerty26 / UnexpectedTerminal）
                 List<KeyModel> keys = layout.build().allKeys();
                 keyboardView = new NineKeyKeyboard(this, dispatcher, keys);
             } else {
-                // 九宫格：走 JSON
                 String configFile = "default.json";
                 if ("direct".equals(currentBehavior)) configFile = "default_english.json";
                 RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
