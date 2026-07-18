@@ -25,6 +25,32 @@ public class SimpleImeService extends InputMethodService {
     private static File logFile;
     private NineKeyKeyboard keyboardView;
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
+    private String currentContext = "chinese";
+
+    // 场景识别：根据 App 包名返回 context
+    private static String detectContext(EditorInfo info) {
+        if (info == null) return "chinese";
+        String pkg = info.packageName;
+        if (pkg == null) return "chinese";
+        // 终端类 App
+        if (pkg.contains("termux") || pkg.contains("terminal") || pkg.contains("ssh")) {
+            return "english";
+        }
+        // 代码编辑器
+        if (pkg.contains("editor") || pkg.contains("code") || pkg.contains("vscode")) {
+            return "english";
+        }
+        return "chinese";
+    }
+
+    // 根据 context 选择配置文件
+    private static String configFileForContext(String context) {
+        switch (context) {
+            case "english": return "default_english.json";
+            case "chinese": 
+            default: return "default.json";
+        }
+    }
 
     public static void log(Context ctx, String msg) {
         try {
@@ -68,6 +94,14 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+
+        String detected = detectContext(info);
+        if (!detected.equals(currentContext) || keyboardView == null) {
+            currentContext = detected;
+            log(this, "场景切换: " + info.packageName + " -> " + currentContext);
+            rebuildKeyboard();
+        }
+
         if (keyboardView != null) {
             keyboardView.resetSession();
         }
@@ -80,6 +114,38 @@ public class SimpleImeService extends InputMethodService {
                 }
             }
         }, 100);
+    }
+
+    private void rebuildKeyboard() {
+        // 重新加载配置并重建键盘 View
+        View root = getWindow().getWindow().getDecorView().findViewById(android.R.id.content);
+        if (root instanceof FrameLayout) {
+            FrameLayout container = (FrameLayout) root;
+            container.removeAllViews();
+
+            int h = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 280, getResources().getDisplayMetrics());
+
+            KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
+                @Override
+                public void onCommand(Command cmd) {
+                    InputConnection ic = getCurrentInputConnection();
+                    if (ic != null) InputEngine.execute(ic, cmd);
+                }
+            };
+
+            String configFile = configFileForContext(currentContext);
+            RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
+            keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.keys);
+
+            if ("english".equals(layoutConfig.context)) {
+                keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
+            } else {
+                keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
+            }
+
+            keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
+            container.addView(keyboardView);
+        }
     }
 
     @Override
@@ -137,8 +203,8 @@ public class SimpleImeService extends InputMethodService {
 
         RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, "default.json");
         keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.keys);
+        currentContext = layoutConfig.context;
 
-        // 根据 context 设置输入模式
         if ("english".equals(layoutConfig.context)) {
             keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
         } else {
