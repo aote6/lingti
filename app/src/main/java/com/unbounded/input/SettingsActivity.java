@@ -19,6 +19,7 @@ public class SettingsActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ThemeTokens.refresh();
         prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
 
         ScrollView scroll = new ScrollView(this);
@@ -59,6 +60,16 @@ public class SettingsActivity extends Activity {
             makeThemeBtn("默认", "Default", themeText),
             makeThemeBtn("琥珀", "Amber", themeText),
             makeThemeBtn("IBM", "IBM", themeText)
+        ));
+
+        // 强制模式
+        addSection(root, "场景强制模式");
+        final TextView forceText = addCurrent(root, forceModeName(prefs.getString("force_mode", "auto")));
+        root.addView(makeRow(
+            makeForceBtn("自动", "auto", forceText),
+            makeForceBtn("九宫格", "chinese", forceText),
+            makeForceBtn("26键", "editor", forceText),
+            makeForceBtn("终端", "terminal", forceText)
         ));
 
         // 高度
@@ -181,6 +192,34 @@ public class SettingsActivity extends Activity {
             default: return "T9中文";
         }
     }
+    private String forceModeName(String val) {
+        switch (val) {
+            case "chinese": return "强制九宫格";
+            case "editor": return "强制26键";
+            case "terminal": return "强制终端";
+            default: return "自动";
+        }
+    }
+
+    private Button makeForceBtn(String label, final String value, final TextView display) {
+        Button btn = new Button(this);
+        btn.setText(label);
+        btn.setTextColor(ThemeTokens.BG);
+        btn.setBackgroundColor(ThemeTokens.TEXT_SECONDARY);
+        btn.setPadding(20, 10, 20, 10);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 10, 0);
+        btn.setLayoutParams(params);
+        btn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                prefs.edit().putString("force_mode", value).apply();
+                display.setText("当前: " + forceModeName(value));
+            }
+        });
+        return btn;
+    }
+
     private String themeName(String val) {
         switch (val) {
             case "Amber": return "琥珀";

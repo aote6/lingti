@@ -1,4 +1,5 @@
 {
+  "_comment": "旧兼容文件，终端主路径已迁移到 UnexpectedTerminalLayout 和 default_ninekey_terminal.json",
   "version": 3,
   "layout": "terminal",
   "context": "terminal",

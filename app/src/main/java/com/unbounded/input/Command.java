@@ -19,6 +19,7 @@ public abstract class Command {
     public static Command insert(String text) { return new InsertText(text); }
     public static Command backspace() { return new Backspace(); }
     public static Command commit() { return new Commit(); }
+    // 文本插入，非系统键。系统键事件请用 KeyEventCommand
     public static Command space() { return new InsertText(" "); }
     public static Command enter() { return new InsertText("\n"); }
     public static Command del() { return new Backspace(); }

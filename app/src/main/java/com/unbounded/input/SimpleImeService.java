@@ -134,7 +134,13 @@ public class SimpleImeService extends InputMethodService {
 
         applyThemeFromPrefs();
 
-        String context = detectContext(info);
+        String forceMode = prefs.getString("force_mode", "auto");
+        String context;
+        if (!"auto".equals(forceMode)) {
+            context = forceMode;
+        } else {
+            context = detectContext(info);
+        }
         String layout = prefs.getString("default_layout", "ninekey");
         String behavior = prefs.getString("default_behavior", "t9");
 
