@@ -159,6 +159,10 @@ public class SimpleImeService extends InputMethodService {
             rebuildKeyboard();
         }
 
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            ic.finishComposingText();
+        }
         if (keyboardView != null) keyboardView.resetSession();
         focusHandler.postDelayed(new Runnable() {
             @Override
@@ -227,12 +231,20 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onFinishInput() {
         super.onFinishInput();
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            ic.finishComposingText();
+        }
         if (keyboardView != null) keyboardView.resetSession();
     }
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
         super.onFinishInputView(finishingInput);
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) {
+            ic.finishComposingText();
+        }
         if (keyboardView != null) keyboardView.resetSession();
     }
 
@@ -290,6 +302,7 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onDestroy() {
         focusHandler.removeCallbacksAndMessages(null);
+        keyboardView = null;
         T9Engine.save();
         super.onDestroy();
     }

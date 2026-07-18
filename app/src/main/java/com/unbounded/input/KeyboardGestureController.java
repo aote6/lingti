@@ -1,8 +1,10 @@
 package com.unbounded.input;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import java.util.List;
 
 import com.unbounded.input.core.layout.KeyModel;
@@ -24,6 +26,7 @@ public class KeyboardGestureController {
     private boolean isCandidateBarPress = false;
 
     private final SessionAccess session;
+    private final int touchSlop;
 
     public interface SessionAccess {
         StringBuilder composingDigits();
@@ -40,6 +43,7 @@ public class KeyboardGestureController {
         MultiTapEngine getMultiTapEngine();
         void toggleInputMode();
         float getDpScale();
+        android.content.Context getKeyboardContext();
         float getPopupBoxX();
         float getPopupItemWidth();
     }
@@ -48,6 +52,8 @@ public class KeyboardGestureController {
         this.keys = keys;
         this.dispatcher = dispatcher;
         this.session = session;
+        Context ctx = session.getKeyboardContext();
+        this.touchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
         this.longPressRunnable = new LongPressTask(this);
         this.multiTapTimeoutRunnable = new Runnable() {
             public void run() {
@@ -120,7 +126,7 @@ public class KeyboardGestureController {
         float x = event.getX(), y = event.getY();
         float barHeight = session.candidateBarHeight();
         float dp = session.getDpScale();
-        float swipeDeadZone = 8 * dp;
+        float popupItemWidth = 50 * dp;
         float pageScrollThreshold = 12 * dp;
 
         switch (event.getAction()) {
@@ -183,19 +189,27 @@ public class KeyboardGestureController {
                 }
                 if (isLongPressed && currentPopupItems != null) {
                     float popupBoxX = session.getPopupBoxX();
-                    float popupItemWidth = session.getPopupItemWidth();
-                    if (popupItemWidth <= 0) popupItemWidth = 50 * dp;
-                    int idx = (int) ((x - popupBoxX) / popupItemWidth);
+                    float pw = session.getPopupItemWidth();
+                    if (pw <= 0) pw = popupItemWidth;
+                    int idx = (int) ((x - popupBoxX) / pw);
                     if (idx < 0) idx = 0;
                     if (idx >= currentPopupItems.length) idx = currentPopupItems.length - 1;
                     if (idx != longPressSelectedIndex) { longPressSelectedIndex = idx; session.invalidateView(); }
                     return true;
                 }
-                if (!isGestureConsumed && (Math.abs(x - startX) > swipeDeadZone || Math.abs(y - startY) > swipeDeadZone))
-                    longPressHandler.removeCallbacks(longPressRunnable);
                 if (!isGestureConsumed) {
-                    GestureRecognizer.Gesture g = recognizer.onMove(x, y);
-                    if (g != GestureRecognizer.Gesture.NONE) { execGesture(g); isGestureConsumed = true; session.invalidateView(); }
+                    float dx = x - startX;
+                    float dy = y - startY;
+                    float distance = (float) Math.hypot(dx, dy);
+                    if (distance > touchSlop) {
+                        longPressHandler.removeCallbacks(longPressRunnable);
+                        GestureRecognizer.Gesture g = recognizer.onMove(x, y);
+                        if (g != GestureRecognizer.Gesture.NONE) {
+                            execGesture(g);
+                            isGestureConsumed = true;
+                            session.invalidateView();
+                        }
+                    }
                 }
                 return true;
             case MotionEvent.ACTION_UP:

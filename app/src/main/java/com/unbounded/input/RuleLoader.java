@@ -36,7 +36,11 @@ public class RuleLoader {
         }
     }
 
+    private static final java.util.Map<String, LayoutConfig> cache = new java.util.HashMap<>();
+
     public static LayoutConfig load(Context context, String fileName) {
+        LayoutConfig cached = cache.get(fileName);
+        if (cached != null) return cached;
         LayoutConfig config = new LayoutConfig();
         try {
             InputStream is = context.getAssets().open(fileName);
@@ -74,6 +78,7 @@ public class RuleLoader {
         } catch (Exception e) {
             SimpleImeService.log(context, "RuleLoader 加载失败: " + e.getMessage());
         }
+        cache.put(fileName, config);
         return config;
     }
 

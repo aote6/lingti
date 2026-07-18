@@ -56,6 +56,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
 
     public int getCols() { return cols; }
     public float getDpScale() { return dpScale; }
+    public android.content.Context getKeyboardContext() { return getContext(); }
     public float getPopupBoxX() { return popupBoxX; }
     public float getPopupItemWidth() { return popupItemWidth; }
 
