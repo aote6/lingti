@@ -22,7 +22,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private int candidatePage = 0;
     private float candidateBarHeight;
 
-    public enum InputMode { CHINESE, ENGLISH }
+    public enum InputMode { CHINESE, ENGLISH, TERMINAL }
     private InputMode inputMode = InputMode.CHINESE;
     private final MultiTapEngine multiTapEngine = new MultiTapEngine();
 
@@ -46,7 +46,9 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     public InputMode getInputMode() { return inputMode; }
 
     @Override public void toggleInputMode() {
-        setInputMode(inputMode == InputMode.CHINESE ? InputMode.ENGLISH : InputMode.CHINESE);
+        if (inputMode == InputMode.CHINESE) setInputMode(InputMode.ENGLISH);
+        else if (inputMode == InputMode.ENGLISH) setInputMode(InputMode.CHINESE);
+        // TERMINAL 不参与循环切换，只能由场景自动设置
     }
 
     @Override public StringBuilder composingDigits() { return composingDigits; }

@@ -27,27 +27,24 @@ public class SimpleImeService extends InputMethodService {
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
     private String currentContext = "chinese";
 
-    // 场景识别：根据 App 包名返回 context
     private static String detectContext(EditorInfo info) {
         if (info == null) return "chinese";
         String pkg = info.packageName;
         if (pkg == null) return "chinese";
-        // 终端类 App
         if (pkg.contains("termux") || pkg.contains("terminal") || pkg.contains("ssh")) {
-            return "english";
+            return "terminal";
         }
-        // 代码编辑器
         if (pkg.contains("editor") || pkg.contains("code") || pkg.contains("vscode")) {
             return "english";
         }
         return "chinese";
     }
 
-    // 根据 context 选择配置文件
     private static String configFileForContext(String context) {
         switch (context) {
+            case "terminal": return "default_terminal.json";
             case "english": return "default_english.json";
-            case "chinese": 
+            case "chinese":
             default: return "default.json";
         }
     }
@@ -117,7 +114,6 @@ public class SimpleImeService extends InputMethodService {
     }
 
     private void rebuildKeyboard() {
-        // 重新加载配置并重建键盘 View
         View root = getWindow().getWindow().getDecorView().findViewById(android.R.id.content);
         if (root instanceof FrameLayout) {
             FrameLayout container = (FrameLayout) root;
@@ -139,6 +135,8 @@ public class SimpleImeService extends InputMethodService {
 
             if ("english".equals(layoutConfig.context)) {
                 keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
+            } else if ("terminal".equals(layoutConfig.context)) {
+                keyboardView.setInputMode(NineKeyKeyboard.InputMode.TERMINAL);
             } else {
                 keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
             }
@@ -207,6 +205,8 @@ public class SimpleImeService extends InputMethodService {
 
         if ("english".equals(layoutConfig.context)) {
             keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
+        } else if ("terminal".equals(layoutConfig.context)) {
+            keyboardView.setInputMode(NineKeyKeyboard.InputMode.TERMINAL);
         } else {
             keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
         }

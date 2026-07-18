@@ -186,6 +186,12 @@ public class KeyboardGestureController {
         }
         if (cmd == null) return;
 
+        // 终端模式：所有手势直接 commit 文本，不走 T9/MultiTap
+        if (session.getInputMode() == NineKeyKeyboard.InputMode.TERMINAL) {
+            dispatcher.onCommand(cmd);
+            return;
+        }
+
         if (g == GestureRecognizer.Gesture.TAP && session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
             String rawText = KeyboardRenderer.cmdLabel(activeKey.tap);
             if (KeyboardRenderer.isNumeric(rawText)) {
@@ -195,7 +201,6 @@ public class KeyboardGestureController {
                 session.composingDigits().append(result);
                 session.candidates().clear();
                 session.candidates().add(result);
-                // 重置超时计时器
                 multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
                 multiTapTimer.postDelayed(multiTapTimeoutRunnable, 800);
                 session.invalidateView();

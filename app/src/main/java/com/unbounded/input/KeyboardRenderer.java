@@ -78,11 +78,16 @@ public class KeyboardRenderer {
             }
         }
 
-        // 模式标签（左下角）
+        // 模式标签
         textPaint.setTextSize(candidateBarHeight * 0.35f);
         textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
         textPaint.setTextAlign(Paint.Align.LEFT);
-        String modeLabel = inputMode == NineKeyKeyboard.InputMode.CHINESE ? "中" : "EN";
+        String modeLabel;
+        switch (inputMode) {
+            case ENGLISH: modeLabel = "EN"; break;
+            case TERMINAL: modeLabel = "TERM"; break;
+            default: modeLabel = "中"; break;
+        }
         canvas.drawText(modeLabel, 12f, candidateBarHeight * 0.55f, textPaint);
 
         if (keys.isEmpty()) return;
@@ -98,18 +103,37 @@ public class KeyboardRenderer {
             borderPaint.setColor(pressed ? ThemeTokens.BORDER_ACTIVE : ThemeTokens.BORDER);
             canvas.drawRect(l, t, r_, b, borderPaint);
             float cx = (l + r_) / 2f, cy = (t + b) / 2f;
-            String mainStr = convertToT9Label(cmdLabel(k.tap));
-            if (mainStr != null) {
-                textPaint.setColor(pressed ? ThemeTokens.TEXT_ACCENT : ThemeTokens.TEXT_PRIMARY);
-                textPaint.setTextSize(kh * 0.3f);
-                textPaint.setTextAlign(Paint.Align.CENTER);
-                canvas.drawText(mainStr, cx, cy + kh * 0.08f, textPaint);
+
+            // 终端模式显示原始标签（Esc/Tab/Ctrl等），其他模式显示 T9 字母
+            String displayLabel;
+            if (inputMode == NineKeyKeyboard.InputMode.TERMINAL) {
+                displayLabel = cmdLabel(k.tap);
+            } else {
+                displayLabel = convertToT9Label(cmdLabel(k.tap));
             }
-            String upNum = cmdLabel(k.swipeUp);
-            if (upNum != null && upNum.matches("[0-9]")) {
-                textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-                textPaint.setTextSize(kh * 0.18f);
-                canvas.drawText(upNum, cx, t + kh * 0.22f, textPaint);
+
+            if (displayLabel != null) {
+                textPaint.setColor(pressed ? ThemeTokens.TEXT_ACCENT : ThemeTokens.TEXT_PRIMARY);
+                textPaint.setTextSize(kh * (displayLabel.length() > 2 ? 0.22f : 0.3f));
+                textPaint.setTextAlign(Paint.Align.CENTER);
+                canvas.drawText(displayLabel, cx, cy + kh * 0.08f, textPaint);
+            }
+
+            // 终端模式下也显示 swipeUp 的快捷键提示
+            if (inputMode == NineKeyKeyboard.InputMode.TERMINAL) {
+                String upLabel = cmdLabel(k.swipeUp);
+                if (upLabel != null && !upLabel.equals(displayLabel)) {
+                    textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+                    textPaint.setTextSize(kh * 0.16f);
+                    canvas.drawText(upLabel, cx, t + kh * 0.2f, textPaint);
+                }
+            } else {
+                String upNum = cmdLabel(k.swipeUp);
+                if (upNum != null && upNum.matches("[0-9]")) {
+                    textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+                    textPaint.setTextSize(kh * 0.18f);
+                    canvas.drawText(upNum, cx, t + kh * 0.22f, textPaint);
+                }
             }
         }
     }
