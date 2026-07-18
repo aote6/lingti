@@ -1,15 +1,7 @@
 package com.unbounded.input;
 
-public class InsertText implements Command {
-    private final String text;
-
+public class InsertText extends Command {
     public InsertText(String text) {
-        this.text = text;
+        super(Type.INSERT_TEXT, text != null ? text : "");
     }
-
-    @Override
-    public String type() { return "insert"; }
-
-    @Override
-    public String text() { return text; }
 }

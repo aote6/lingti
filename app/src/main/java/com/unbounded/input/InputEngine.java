@@ -5,30 +5,33 @@ import android.view.inputmethod.InputConnection;
 public class InputEngine {
     public static void execute(InputConnection ic, Command cmd) {
         if (ic == null || cmd == null) return;
-        switch (cmd.type()) {
-            case "insert":
+        switch (cmd.type) {
+            case INSERT_TEXT:
+                if (cmd.text.isEmpty()) break;
                 ic.beginBatchEdit();
-                String text = cmd.text();
-                if (text.equals("空格")) {
-                    ic.commitText(" ", 1);
-                } else if (text.equals("Enter")) {
-                    ic.commitText("\n", 1);
-                } else if (text.equals("Del")) {
-                    ic.deleteSurroundingText(1, 0);
-                } else if (text.equals("Tab")) {
-                    ic.commitText("\t", 1);
-                } else if (text.equals("Esc") || text.equals("布局")) {
-                    // 暂不处理
-                } else if (!text.isEmpty()) {
-                    ic.commitText(text, 1);
-                }
+                ic.commitText(cmd.text, 1);
                 ic.endBatchEdit();
                 break;
-            case "backspace":
+            case BACKSPACE:
                 ic.deleteSurroundingText(1, 0);
                 break;
-            case "commit":
+            case COMMIT:
                 ic.finishComposingText();
+                break;
+            case SPACE:
+                ic.commitText(" ", 1);
+                break;
+            case ENTER:
+                ic.commitText("\n", 1);
+                break;
+            case DEL:
+                ic.deleteSurroundingText(1, 0);
+                break;
+            case TAB:
+                ic.commitText("\t", 1);
+                break;
+            case ESC:
+            case NOOP:
                 break;
         }
     }

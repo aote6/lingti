@@ -65,10 +65,47 @@ public class NineKeyKeyboard extends View {
         };
     }
 
+    public void resetSession() {
+        composingDigits.setLength(0);
+        candidates.clear();
+        candidateRects.clear();
+        activeKey = null;
+        isGestureConsumed = false;
+        isLongPressed = false;
+        longPressSelectedIndex = -1;
+        currentPopupItems = null;
+        longPressHandler.removeCallbacks(longPressRunnable);
+        invalidate();
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        computeKeyRects(w, h);
+    }
+
+    private void computeKeyRects(int w, int h) {
+        if (keys.isEmpty()) return;
+        candidateBarHeight = h * 0.16f;
+        float remainingHeight = h - candidateBarHeight;
+        int rows = keys.size() / COLS;
+        float kw = (float) w / COLS;
+        float kh = remainingHeight / rows;
+        for (int i = 0; i < keys.size(); i++) {
+            KeySlot k = keys.get(i);
+            int row = i / COLS;
+            int col = i % COLS;
+            float l = col * kw + PAD;
+            float t = candidateBarHeight + row * kh + PAD;
+            float r = (col + 1) * kw - PAD;
+            float b = candidateBarHeight + (row + 1) * kh - PAD;
+            k.rect.set((int) l, (int) t, (int) r, (int) b);
+        }
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         canvas.drawColor(COLOR_BG);
-        candidateBarHeight = getHeight() * 0.16f;
         borderPaint.setColor(COLOR_BORDER);
         canvas.drawLine(0, candidateBarHeight, getWidth(), candidateBarHeight, borderPaint);
         candidateRects.clear();
@@ -87,21 +124,18 @@ public class NineKeyKeyboard extends View {
         }
         if (keys.isEmpty()) return;
         float remainingHeight = getHeight() - candidateBarHeight;
-        float kw = (float) getWidth() / COLS;
         int rows = keys.size() / COLS;
         float kh = remainingHeight / rows;
         for (int i = 0; i < keys.size(); i++) {
             KeySlot k = keys.get(i);
-            int row = i / COLS, col = i % COLS;
-            float l = col * kw + PAD, t = candidateBarHeight + row * kh + PAD;
-            float r = (col + 1) * kw - PAD, b = candidateBarHeight + (row + 1) * kh - PAD;
-            k.rect.set((int) l, (int) t, (int) r, (int) b);
+            Rect r = k.rect;
+            float l = r.left, t = r.top, r_ = r.right, b = r.bottom;
             boolean pressed = (k == activeKey && !isLongPressed);
             bgPaint.setColor(pressed ? COLOR_SHADOW : COLOR_KEY_BG);
-            canvas.drawRect(l, t, r, b, bgPaint);
+            canvas.drawRect(l, t, r_, b, bgPaint);
             borderPaint.setColor(pressed ? COLOR_ACTIVE : COLOR_BORDER);
-            canvas.drawRect(l, t, r, b, borderPaint);
-            float cx = (l + r) / 2f, cy = (t + b) / 2f;
+            canvas.drawRect(l, t, r_, b, borderPaint);
+            float cx = (l + r_) / 2f, cy = (t + b) / 2f;
             String rawLabel = cmdLabel(k.tap);
             String mainStr = convertToT9Label(rawLabel);
             if (mainStr != null) {
@@ -154,7 +188,11 @@ public class NineKeyKeyboard extends View {
         switch (rawLabel) { case "2": return "ABC"; case "3": return "DEF"; case "4": return "GHI"; case "5": return "JKL"; case "6": return "MNO"; case "7": return "PQRS"; case "8": return "TUV"; case "9": return "WXYZ"; default: return rawLabel; }
     }
 
-    private String cmdLabel(Command cmd) { return cmd != null && cmd.type().equals("insert") && !cmd.text().isEmpty() ? cmd.text() : (cmd != null ? cmd.type() : null); }
+    private String cmdLabel(Command cmd) {
+        if (cmd == null) return null;
+        if (cmd.type == Command.Type.INSERT_TEXT && !cmd.text.isEmpty()) return cmd.text;
+        return cmd.type.name().toLowerCase();
+    }
 
     private KeySlot findKey(float x, float y) { for (KeySlot k : keys) if (k.rect.contains((int) x, (int) y)) return k; return null; }
 

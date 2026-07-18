@@ -26,8 +26,8 @@ public class RuleLoader {
                 key.swipeUp = parseCommand(obj.optJSONObject("swipeUp"));
                 key.swipeDown = parseCommand(obj.optJSONObject("swipeDown"));
                 key.swipeLeft = parseCommand(obj.optJSONObject("swipeLeft"));
-                key.longPress = parseCommand(obj.optJSONObject("longPress"));
                 key.swipeRight = parseCommand(obj.optJSONObject("swipeRight"));
+                key.longPress = parseCommand(obj.optJSONObject("longPress"));
                 keys.add(key);
             }
         } catch (Exception e) {
@@ -41,9 +41,9 @@ public class RuleLoader {
         String type = obj.optString("type", "");
         String text = obj.optString("text", "");
         switch (type) {
-            case "insert": return new InsertText(text);
-            case "backspace": return new Backspace();
-            case "commit": return new Commit();
+            case "insert": return Command.insert(text);
+            case "backspace": return Command.backspace();
+            case "commit": return Command.commit();
             default: return null;
         }
     }

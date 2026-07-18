@@ -11,7 +11,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.FrameLayout;
 
 import java.io.File;
@@ -70,20 +69,55 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+        if (keyboardView != null) {
+            keyboardView.resetSession();
+        }
         focusHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                if (imm != null && keyboardView != null) imm.restartInput(keyboardView);
-                if (keyboardView != null) { keyboardView.requestLayout(); keyboardView.invalidate(); }
+                if (keyboardView != null) {
+                    keyboardView.requestLayout();
+                    keyboardView.invalidate();
+                }
             }
         }, 100);
     }
 
     @Override
+    public void onFinishInput() {
+        super.onFinishInput();
+        if (keyboardView != null) {
+            keyboardView.resetSession();
+        }
+    }
+
+    @Override
+    public void onFinishInputView(boolean finishingInput) {
+        super.onFinishInputView(finishingInput);
+        if (keyboardView != null) {
+            keyboardView.resetSession();
+        }
+    }
+
+    @Override
+    public void onUpdateSelection(int oldSelStart, int oldSelEnd,
+                                   int newSelStart, int newSelEnd,
+                                   int candidatesStart, int candidatesEnd) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
+                                candidatesStart, candidatesEnd);
+        // 光标位置变化时重置候选状态
+        if (keyboardView != null && oldSelStart != newSelStart) {
+            keyboardView.resetSession();
+        }
+    }
+
+    @Override
     public void onWindowShown() {
         super.onWindowShown();
-        if (keyboardView != null) { keyboardView.requestLayout(); keyboardView.invalidate(); }
+        if (keyboardView != null) {
+            keyboardView.requestLayout();
+            keyboardView.invalidate();
+        }
     }
 
     @Override
