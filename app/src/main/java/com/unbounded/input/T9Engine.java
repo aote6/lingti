@@ -9,4 +9,8 @@ public class T9Engine {
     public static List<String> getCandidates(String digits) {
         return engine.query(digits);
     }
+
+    public static void onCandidateSelected(String word) {
+        engine.onCandidateSelected(word);
+    }
 }

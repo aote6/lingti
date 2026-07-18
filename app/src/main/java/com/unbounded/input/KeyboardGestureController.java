@@ -135,12 +135,12 @@ public class KeyboardGestureController {
                     for (int i = 0; i < rects.size(); i++) {
                         if (rects.get(i).contains((int) x, (int) y)) {
                             if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i)));
+                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i))); T9Engine.onCandidateSelected(cands.get(i));
                                 session.composingDigits().setLength(0);
                                 cands.clear();
                                 session.getMultiTapEngine().reset();
                             } else {
-                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i)));
+                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i))); T9Engine.onCandidateSelected(cands.get(i));
                                 session.composingDigits().setLength(0);
                                 cands.clear();
                             }
@@ -187,7 +187,7 @@ public class KeyboardGestureController {
             case MotionEvent.ACTION_CANCEL:
                 longPressHandler.removeCallbacks(longPressRunnable);
                 if (isLongPressed && currentPopupItems != null && longPressSelectedIndex >= 0) {
-                    dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex]));
+                    dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex])); T9Engine.onCandidateSelected(currentPopupItems[longPressSelectedIndex]);
                     isLongPressed = false; currentPopupItems = null;
                     if (activeKey != null) activeKey.pressed = false;
                     activeKey = null;

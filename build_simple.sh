@@ -44,6 +44,7 @@ ecj -d $BUILD_DIR/classes \
     $SRC_DIR/core/candidate/CandidateProvider.java \
     $SRC_DIR/core/candidate/T9Provider.java \
     $SRC_DIR/core/candidate/CandidateEngine.java \
+    $SRC_DIR/core/candidate/FrequencyCache.java \
     $SRC_DIR/core/theme/ThemeProfile.java \
     $SRC_DIR/core/theme/ThemeManager.java \
     $SRC_DIR/layouts/nine/NineKeyLayout.java \
