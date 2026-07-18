@@ -33,7 +33,15 @@ ecj -d $BUILD_DIR/classes \
     $SRC_DIR/NineKeyKeyboard.java \
     $SRC_DIR/SimpleImeService.java \
     $SRC_DIR/SettingsActivity.java \
-    $SRC_DIR/MainActivity.java
+    $SRC_DIR/MainActivity.java \
+    $SRC_DIR/core/command/KeyEventCommand.java \
+    $SRC_DIR/core/command/KeyChordCommand.java \
+    $SRC_DIR/core/layout/KeyModel.java \
+    $SRC_DIR/core/layout/RowSpec.java \
+    $SRC_DIR/core/layout/LayoutProfile.java \
+    $SRC_DIR/core/layout/KeyboardLayout.java \
+    $SRC_DIR/core/layout/LayoutManager.java \
+    $SRC_DIR/layouts/nine/NineKeyLayout.java
 
 echo "=== 处理资源 ==="
 aapt package -f -M $MANIFEST -S $RES_DIR -I $ANDROID_JAR -F $BUILD_DIR/resources.apk

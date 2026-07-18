@@ -1,7 +1,11 @@
 package com.unbounded.input;
 
 public abstract class Command {
-    public enum Type { INSERT_TEXT, BACKSPACE, COMMIT, SPACE, ENTER, DEL, TAB, ESC, NOOP }
+    public enum Type {
+        INSERT_TEXT, BACKSPACE, COMMIT,
+        KEY_EVENT, KEY_CHORD,
+        SPACE, ENTER, DEL, TAB, ESC, NOOP
+    }
 
     public final Type type;
     public final String text;
