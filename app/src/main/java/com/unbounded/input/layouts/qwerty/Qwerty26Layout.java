@@ -109,6 +109,8 @@ public class Qwerty26Layout implements KeyboardLayout {
     }
 
     private KeyModel spacer(float span) {
-        return new KeyModel("sp", "", span);
+        KeyModel k = new KeyModel("sp", "", span);
+        k.enabled = false;
+        return k;
     }
 }

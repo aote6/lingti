@@ -1,6 +1,5 @@
 package com.unbounded.input.core.layout;
 
-
 public class LayoutManager {
     private KeyboardLayout currentLayout;
     private LayoutProfile currentProfile;
@@ -26,19 +25,23 @@ public class LayoutManager {
     public void setCandidateBarHeight(float h) { this.candidateBarHeight = h; }
 
     public void computeRects() {
-        if (currentProfile == null || viewWidth == 0 || viewHeight == 0) return;
-        float y = candidateBarHeight;
-        float totalSpan = 0;
+        if (currentProfile == null || currentProfile.rows.isEmpty() || viewWidth <= 0 || viewHeight <= 0) return;
+
+        float maxSpan = 0f;
         for (RowSpec row : currentProfile.rows) {
             float s = row.totalSpan();
-            if (s > totalSpan) totalSpan = s;
+            if (s > maxSpan) maxSpan = s;
         }
-        if (totalSpan == 0) totalSpan = 10f;
+        if (maxSpan == 0f) maxSpan = 10f;
+
+        float unit = viewWidth / maxSpan;
         float remainingHeight = viewHeight - candidateBarHeight;
         float rowH = remainingHeight / (float) currentProfile.rows.size();
+        float y = candidateBarHeight;
+
         for (RowSpec row : currentProfile.rows) {
-            float unit = viewWidth / totalSpan;
-            float x = 0f;
+            float rowWidth = row.totalSpan() * unit;
+            float x = (viewWidth - rowWidth) / 2f;
             for (KeyModel key : row.keys) {
                 float kw = unit * key.span;
                 key.rect.set(

@@ -43,7 +43,7 @@ public class UnexpectedTerminalLayout implements KeyboardLayout {
         // 第四行: Ctrl 空格 Backspace
         RowSpec row4 = new RowSpec();
         KeyModel ctrl = new KeyModel("ctrl", "Ctrl", 2f, 1, 1, 1, 1);
-        ctrl.tap = KeyEventCommand.of(KeyEvent.KEYCODE_CTRL_LEFT);
+        ctrl.tap = Command.noop();
         KeyModel space = new KeyModel("space", "Space", 4f, 1, 1, 1, 1);
         space.tap = Command.insert(" ");
         KeyModel bksp = new KeyModel("backspace", "Del", 2f, 1, 1, 1, 1);

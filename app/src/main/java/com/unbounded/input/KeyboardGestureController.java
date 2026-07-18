@@ -28,6 +28,8 @@ public class KeyboardGestureController {
     public interface SessionAccess {
         StringBuilder composingDigits();
         List<String> candidates();
+        List<String> visibleCandidates();
+        void resetCandidatePage();
         List<android.graphics.Rect> candidateRects();
         float candidateBarHeight();
         void invalidateView();
@@ -38,6 +40,8 @@ public class KeyboardGestureController {
         MultiTapEngine getMultiTapEngine();
         void toggleInputMode();
         float getDpScale();
+        float getPopupBoxX();
+        float getPopupItemWidth();
     }
 
     public KeyboardGestureController(List<KeyModel> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
@@ -53,6 +57,7 @@ public class KeyboardGestureController {
                 if (!result.isEmpty()) {
                     session.composingDigits().append(result);
                     session.candidates().clear();
+                    session.resetCandidatePage();
                     session.candidates().add(result);
                 }
                 session.invalidateView();
@@ -116,7 +121,6 @@ public class KeyboardGestureController {
         float barHeight = session.candidateBarHeight();
         float dp = session.getDpScale();
         float swipeDeadZone = 8 * dp;
-        float popupItemWidth = 50 * dp;
         float pageScrollThreshold = 12 * dp;
 
         switch (event.getAction()) {
@@ -132,23 +136,25 @@ public class KeyboardGestureController {
                             session.getMultiTapEngine().reset();
                             session.composingDigits().setLength(0);
                             session.candidates().clear();
+                            session.resetCandidatePage();
                             session.invalidateView();
                             return true;
                         }
                     }
                     List<android.graphics.Rect> rects = session.candidateRects();
-                    List<String> cands = session.candidates();
+                    List<String> visible = session.visibleCandidates();
                     for (int i = 0; i < rects.size(); i++) {
                         if (rects.get(i).contains((int) x, (int) y)) {
+                            if (i < visible.size()) {
+                                String chosen = visible.get(i);
+                                dispatcher.onCommand(new InsertText(chosen));
+                                T9Engine.onCandidateSelected(chosen);
+                            }
+                            session.composingDigits().setLength(0);
+                            session.candidates().clear();
+                            session.resetCandidatePage();
                             if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
-                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i))); T9Engine.onCandidateSelected(cands.get(i));
-                                session.composingDigits().setLength(0);
-                                cands.clear();
                                 session.getMultiTapEngine().reset();
-                            } else {
-                                if (i < cands.size()) dispatcher.onCommand(new InsertText(cands.get(i))); T9Engine.onCandidateSelected(cands.get(i));
-                                session.composingDigits().setLength(0);
-                                cands.clear();
                             }
                             session.invalidateView();
                             return true;
@@ -176,7 +182,10 @@ public class KeyboardGestureController {
                     return true;
                 }
                 if (isLongPressed && currentPopupItems != null) {
-                    int idx = (int) ((x - startX) / popupItemWidth);
+                    float popupBoxX = session.getPopupBoxX();
+                    float popupItemWidth = session.getPopupItemWidth();
+                    if (popupItemWidth <= 0) popupItemWidth = 50 * dp;
+                    int idx = (int) ((x - popupBoxX) / popupItemWidth);
                     if (idx < 0) idx = 0;
                     if (idx >= currentPopupItems.length) idx = currentPopupItems.length - 1;
                     if (idx != longPressSelectedIndex) { longPressSelectedIndex = idx; session.invalidateView(); }
@@ -193,7 +202,8 @@ public class KeyboardGestureController {
             case MotionEvent.ACTION_CANCEL:
                 longPressHandler.removeCallbacks(longPressRunnable);
                 if (isLongPressed && currentPopupItems != null && longPressSelectedIndex >= 0) {
-                    dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex])); T9Engine.onCandidateSelected(currentPopupItems[longPressSelectedIndex]);
+                    dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex]));
+                    T9Engine.onCandidateSelected(currentPopupItems[longPressSelectedIndex]);
                     isLongPressed = false; currentPopupItems = null;
                     if (activeKey != null) activeKey.pressed = false;
                     activeKey = null;
@@ -238,6 +248,7 @@ public class KeyboardGestureController {
                 session.composingDigits().setLength(0);
                 session.composingDigits().append(result);
                 session.candidates().clear();
+                session.resetCandidatePage();
                 session.candidates().add(result);
                 multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
                 multiTapTimer.postDelayed(multiTapTimeoutRunnable, 800);
@@ -250,6 +261,7 @@ public class KeyboardGestureController {
         if (g == GestureRecognizer.Gesture.TAP && rawText != null && rawText.matches("[0-9]")) {
             session.composingDigits().append(rawText);
             session.candidates().clear();
+            session.resetCandidatePage();
             session.candidates().addAll(T9Engine.getCandidates(session.composingDigits().toString()));
             session.invalidateView();
             return;

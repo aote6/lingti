@@ -38,6 +38,7 @@ public class SimpleImeService extends InputMethodService {
     private String currentBehavior = "t9";
     private SharedPreferences prefs;
     private Qwerty26Layout qwertyLayout;
+    private FrameLayout inputRoot;
 
     private static String detectContext(EditorInfo info) {
         if (info == null) return "chinese";
@@ -165,58 +166,57 @@ public class SimpleImeService extends InputMethodService {
     }
 
     private void rebuildKeyboard() {
-        View root = getWindow().getWindow().getDecorView().findViewById(android.R.id.content);
-        if (root instanceof FrameLayout) {
-            FrameLayout container = (FrameLayout) root;
-            container.removeAllViews();
-            int h = getKeyboardHeight();
+        if (inputRoot == null) return;
+        inputRoot.removeAllViews();
+        int h = getKeyboardHeight();
 
-            KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
-                @Override
-                public void onCommand(Command cmd) {
-                    if (cmd.type == Command.Type.SHIFT_TOGGLE) {
-                        if (qwertyLayout != null) qwertyLayout.toggleShift();
-                        rebuildKeyboard();
-                        return;
-                    }
-                    if (cmd.type == Command.Type.SYMBOL_TOGGLE) {
-                        if (qwertyLayout != null) qwertyLayout.toggleSymbol();
-                        rebuildKeyboard();
-                        return;
-                    }
-                    InputConnection ic = getCurrentInputConnection();
-                    if (ic != null) InputEngine.execute(ic, cmd);
+        KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
+            @Override
+            public void onCommand(Command cmd) {
+                if (cmd.type == Command.Type.SHIFT_TOGGLE) {
+                    if (qwertyLayout != null) qwertyLayout.toggleShift();
+                    rebuildKeyboard();
+                    return;
                 }
-            };
-
-            KeyboardLayout layout = resolveLayout(currentLayout);
-            NineKeyKeyboard.InputMode mode = resolveInputMode(currentLayout, currentBehavior);
-
-            if (layout != null) {
-                LayoutProfile profile = layout.build();
-                keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
-            } else {
-                String configFile = "default.json";
-                if ("direct".equals(currentBehavior)) configFile = "default_english.json";
-                RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
-                List<KeyModel> keys = layoutConfig.toKeyModels();
-                LayoutProfile profile = new LayoutProfile("inline");
-                int rows = (int) Math.ceil((float) keys.size() / 3);
-                for (int r = 0; r < rows; r++) {
-                    com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
-                    for (int c = 0; c < 3; c++) {
-                        int idx = r * 3 + c;
-                        if (idx < keys.size()) row.add(keys.get(idx));
-                    }
-                    profile.addRow(row);
+                if (cmd.type == Command.Type.SYMBOL_TOGGLE) {
+                    if (qwertyLayout != null) qwertyLayout.toggleSymbol();
+                    rebuildKeyboard();
+                    return;
                 }
-                keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
+                InputConnection ic = getCurrentInputConnection();
+                if (ic != null) InputEngine.execute(ic, cmd);
             }
-            keyboardView.setInputMode(mode);
-            keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
-            container.addView(keyboardView);
+        };
+
+        KeyboardLayout layout = resolveLayout(currentLayout);
+        NineKeyKeyboard.InputMode mode = resolveInputMode(currentLayout, currentBehavior);
+
+        if (layout != null) {
+            LayoutProfile profile = layout.build();
+            keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
+        } else {
+            String configFile = "default.json";
+            if ("keyevent".equals(currentBehavior)) configFile = "default_ninekey_terminal.json";
+            else if ("direct".equals(currentBehavior)) configFile = "default_english.json";
+            RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
+            List<KeyModel> keys = layoutConfig.toKeyModels();
+            LayoutProfile profile = new LayoutProfile("inline");
+            int rows = (int) Math.ceil((float) keys.size() / 3);
+            for (int r = 0; r < rows; r++) {
+                com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
+                for (int c = 0; c < 3; c++) {
+                    int idx = r * 3 + c;
+                    if (idx < keys.size()) row.add(keys.get(idx));
+                }
+                profile.addRow(row);
+            }
+            keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
         }
+        keyboardView.setInputMode(mode);
+        keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
+        inputRoot.addView(keyboardView);
     }
+
 
     @Override
     public void onFinishInput() {
@@ -247,12 +247,12 @@ public class SimpleImeService extends InputMethodService {
 
     @Override
     public View onCreateInputView() {
-        FrameLayout container = new FrameLayout(this) {
+        inputRoot = new FrameLayout(this) {
             @Override
             public boolean onTouchEvent(MotionEvent event) { return true; }
         };
         int h = getKeyboardHeight();
-        container.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
+        inputRoot.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
 
         KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
             @Override
@@ -277,8 +277,8 @@ public class SimpleImeService extends InputMethodService {
         keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
         keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
         keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
-        container.addView(keyboardView);
-        return container;
+        inputRoot.addView(keyboardView);
+        return inputRoot;
     }
 
     @Override

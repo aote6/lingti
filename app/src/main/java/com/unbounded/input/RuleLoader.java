@@ -3,7 +3,9 @@ package com.unbounded.input;
 import android.content.Context;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,10 +40,15 @@ public class RuleLoader {
         LayoutConfig config = new LayoutConfig();
         try {
             InputStream is = context.getAssets().open(fileName);
-            byte[] buffer = new byte[is.available()];
-            is.read(buffer);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = is.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
             is.close();
-            String json = new String(buffer, "UTF-8");
+            String json = out.toString(StandardCharsets.UTF_8.name());
+
             JSONObject root = new JSONObject(json);
 
             config.version = root.optInt("version", 1);

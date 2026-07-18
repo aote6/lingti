@@ -25,11 +25,12 @@ public class SettingsActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(40, 40, 40, 40);
+        root.setBackgroundColor(ThemeTokens.BG);
 
         TextView title = new TextView(this);
         title.setText("灵体 设置 V3");
         title.setTextSize(22);
-        title.setTextColor(0xFF22CC88);
+        title.setTextColor(ThemeTokens.TEXT_PRIMARY);
         title.setPadding(0, 0, 0, 30);
         root.addView(title);
 
@@ -66,7 +67,7 @@ public class SettingsActivity extends Activity {
         int currentHeight = prefs.getInt("keyboard_height", 280);
         heightText.setText(currentHeight + " dp");
         heightText.setTextSize(14);
-        heightText.setTextColor(0xFF1C9E6A);
+        heightText.setTextColor(ThemeTokens.TEXT_SECONDARY);
         heightText.setPadding(0, 0, 0, 10);
         root.addView(heightText);
         SeekBar seekBar = new SeekBar(this);
@@ -85,8 +86,8 @@ public class SettingsActivity extends Activity {
 
         Button closeBtn = new Button(this);
         closeBtn.setText("关闭");
-        closeBtn.setTextColor(0xFF000000);
-        closeBtn.setBackgroundColor(0xFF22CC88);
+        closeBtn.setTextColor(ThemeTokens.BG);
+        closeBtn.setBackgroundColor(ThemeTokens.TEXT_PRIMARY);
         closeBtn.setPadding(30, 15, 30, 15);
         closeBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { finish(); }
@@ -106,7 +107,7 @@ public class SettingsActivity extends Activity {
         TextView tv = new TextView(this);
         tv.setText(label);
         tv.setTextSize(16);
-        tv.setTextColor(0xFF55EEAA);
+        tv.setTextColor(ThemeTokens.TEXT_ACCENT);
         tv.setPadding(0, 25, 0, 10);
         root.addView(tv);
     }
@@ -115,7 +116,7 @@ public class SettingsActivity extends Activity {
         TextView tv = new TextView(this);
         tv.setText("当前: " + text);
         tv.setTextSize(14);
-        tv.setTextColor(0xFF1C9E6A);
+        tv.setTextColor(ThemeTokens.TEXT_SECONDARY);
         tv.setPadding(0, 0, 0, 15);
         root.addView(tv);
         return tv;
@@ -131,8 +132,8 @@ public class SettingsActivity extends Activity {
     private Button makeBtn(String label, final String value, final TextView display, final String key, final boolean isLayout) {
         Button btn = new Button(this);
         btn.setText(label);
-        btn.setTextColor(0xFF000000);
-        btn.setBackgroundColor(0xFF1C9E6A);
+        btn.setTextColor(ThemeTokens.BG);
+        btn.setBackgroundColor(ThemeTokens.TEXT_SECONDARY);
         btn.setPadding(20, 10, 20, 10);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -150,8 +151,8 @@ public class SettingsActivity extends Activity {
     private Button makeThemeBtn(String label, final String value, final TextView display) {
         Button btn = new Button(this);
         btn.setText(label);
-        btn.setTextColor(0xFF000000);
-        btn.setBackgroundColor(0xFF1C9E6A);
+        btn.setTextColor(ThemeTokens.BG);
+        btn.setBackgroundColor(ThemeTokens.TEXT_SECONDARY);
         btn.setPadding(20, 10, 20, 10);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);

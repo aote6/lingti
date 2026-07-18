@@ -30,6 +30,9 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private int cols = 3;
     private float dpScale = 1f;
 
+    private float popupBoxX;
+    private float popupItemWidth;
+
     public enum InputMode { CHINESE, ENGLISH, TERMINAL }
     private InputMode inputMode = InputMode.CHINESE;
     private final MultiTapEngine multiTapEngine = new MultiTapEngine();
@@ -53,6 +56,8 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
 
     public int getCols() { return cols; }
     public float getDpScale() { return dpScale; }
+    public float getPopupBoxX() { return popupBoxX; }
+    public float getPopupItemWidth() { return popupItemWidth; }
 
     public void setInputMode(InputMode mode) {
         if (this.inputMode != mode) {
@@ -72,6 +77,15 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     @Override public List<Rect> candidateRects() { return candidateRects; }
     @Override public float candidateBarHeight() { return candidateBarHeight; }
     @Override public void invalidateView() { invalidate(); }
+
+    public void resetCandidatePage() { candidatePage = 0; }
+
+    public List<String> visibleCandidates() {
+        int start = candidatePage * CANDIDATE_PAGE_SIZE;
+        int end = Math.min(start + CANDIDATE_PAGE_SIZE, candidates.size());
+        if (candidates.isEmpty() || start >= candidates.size()) return new ArrayList<String>();
+        return new ArrayList<String>(candidates.subList(start, end));
+    }
 
     public int getCandidatePage() { return candidatePage; }
     public int getTotalCandidatePages() {
@@ -110,9 +124,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
 
     @Override
     protected void onDraw(Canvas canvas) {
-        int start = candidatePage * CANDIDATE_PAGE_SIZE;
-        int end = Math.min(start + CANDIDATE_PAGE_SIZE, candidates.size());
-        List<String> pageCandidates = candidates.isEmpty() ? candidates : candidates.subList(start, end);
+        List<String> pageCandidates = visibleCandidates();
         int totalPages = getTotalCandidatePages();
 
         String modeLabel;
@@ -129,8 +141,11 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
                 composingDigits, pageCandidates, candidateRects,
                 candidatePage, totalPages, modeLabel, cols);
         if (gestureController.isLongPressed() && gestureController.getCurrentPopupItems() != null) {
-            renderer.drawHorizontalPopup(canvas, candidateBarHeight,
-                    gestureController.getCurrentPopupItems(),
+            String[] items = gestureController.getCurrentPopupItems();
+            float boxWidth = canvas.getWidth() * 0.85f;
+            popupBoxX = (canvas.getWidth() - boxWidth) / 2f;
+            popupItemWidth = boxWidth / items.length;
+            renderer.drawHorizontalPopup(canvas, candidateBarHeight, items,
                     gestureController.getLongPressSelectedIndex());
         }
     }
