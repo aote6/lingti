@@ -6,106 +6,169 @@ import android.graphics.Rect;
 import java.util.List;
 
 import com.unbounded.input.core.layout.KeyModel;
+import com.unbounded.input.core.layout.LayoutProfile;
+import com.unbounded.input.core.layout.RowSpec;
 
 public class KeyboardRenderer {
-    private final Paint bgPaint, textPaint, borderPaint, popupPaint;
 
-    public KeyboardRenderer() {
-        bgPaint = ThemeTokens.newBgPaint();
-        borderPaint = ThemeTokens.newBorderPaint();
-        popupPaint = ThemeTokens.newBgPaint();
-        textPaint = ThemeTokens.newTextPaint();
+    public void drawKeyboard(Canvas canvas, LayoutProfile profile, float candidateBarHeight,
+                             KeyModel activeKey, boolean isLongPressed,
+                             StringBuilder composingDigits, List<String> pageCandidates,
+                             List<Rect> candidateRects, int candidatePage, int totalPages,
+                             String modeLabel) {
+        int w = canvas.getWidth();
+        int h = canvas.getHeight();
+
+        // 候选栏
+        float barY = drawCandidateBar(canvas, w, candidateBarHeight, composingDigits,
+                pageCandidates, candidateRects, candidatePage, totalPages);
+        // 模式标签
+        Paint labelPaint = ThemeTokens.newTextPaint();
+        labelPaint.setTextSize(24f);
+        labelPaint.setColor(ThemeTokens.TEXT_ACCENT);
+        canvas.drawText(modeLabel, 8, barY - 6, labelPaint);
+
+        // 按 LayoutProfile 逐行渲染
+        if (profile == null || profile.rows.isEmpty()) return;
+
+        List<RowSpec> rows = profile.rows;
+        float maxSpan = 0f;
+        for (RowSpec row : rows) {
+            float s = row.totalSpan();
+            if (s > maxSpan) maxSpan = s;
+        }
+        if (maxSpan == 0f) maxSpan = 10f;
+
+        float remainingHeight = h - barY;
+        float rowH = remainingHeight / rows.size();
+        float unit = w / maxSpan;
+        float y = barY;
+
+        for (RowSpec row : rows) {
+            float rowWidth = row.totalSpan() * unit;
+            float x = (w - rowWidth) / 2f;
+            for (KeyModel key : row.keys) {
+                float kw = unit * key.span;
+                float left = x + key.padLeft;
+                float top = y + key.padTop;
+                float right = x + kw - key.padRight;
+                float bottom = y + rowH - key.padBottom;
+
+                key.rect.set((int) left, (int) top, (int) right, (int) bottom);
+
+                // 按键背景
+                Paint bgPaint = ThemeTokens.newBgPaint();
+                if (key == activeKey) {
+                    bgPaint.setColor(isLongPressed ? ThemeTokens.PRESS_BG : ThemeTokens.BORDER_ACTIVE);
+                } else if (key.enabled) {
+                    bgPaint.setColor(ThemeTokens.SURFACE);
+                } else {
+                    bgPaint.setColor(ThemeTokens.BG);
+                }
+                canvas.drawRect(key.rect, bgPaint);
+
+                // 按键边框
+                if (key.enabled) {
+                    Paint borderPaint = ThemeTokens.newBorderPaint();
+                    borderPaint.setColor(key == activeKey ? ThemeTokens.BORDER_ACTIVE : ThemeTokens.BORDER);
+                    canvas.drawRect(key.rect, borderPaint);
+                }
+
+                // 按键文字
+                if (key.enabled && key.label != null && !key.label.isEmpty()) {
+                    Paint textPaint = ThemeTokens.newTextPaint();
+                    textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
+                    float textSize = key.label.length() > 2 ? 16f : 22f;
+                    textSize = key.label.length() > 4 ? 12f : textSize;
+                    textPaint.setTextSize(textSize);
+                    Paint.FontMetrics fm = textPaint.getFontMetrics();
+                    float textY = key.rect.centerY() - (fm.ascent + fm.descent) / 2;
+                    float textX = key.rect.centerX() - textPaint.measureText(key.label) / 2;
+                    canvas.drawText(key.label, textX, textY, textPaint);
+                }
+
+                x += kw;
+            }
+            y += rowH;
+        }
     }
 
-    public void drawKeyboard(Canvas canvas, List<KeyModel> keys, float candidateBarHeight,
-                              KeyModel activeKey, boolean isLongPressed,
-                              StringBuilder composingDigits, List<String> candidates,
-                              List<Rect> candidateRects,
-                              int currentPage, int totalPages,
-                              String modeLabel, int cols) {
-        canvas.drawColor(ThemeTokens.BG);
-        borderPaint.setColor(ThemeTokens.BORDER);
-        canvas.drawLine(0, candidateBarHeight, canvas.getWidth(), candidateBarHeight, borderPaint);
+    private float drawCandidateBar(Canvas canvas, int w, float barHeight,
+                                   StringBuilder composingDigits, List<String> pageCandidates,
+                                   List<Rect> candidateRects, int candidatePage, int totalPages) {
+        Paint bgPaint = ThemeTokens.newBgPaint();
+        bgPaint.setColor(ThemeTokens.SURFACE_RAISED);
+        canvas.drawRect(0, 0, w, barHeight, bgPaint);
 
+        // 拼写中数字
+        Paint textPaint = ThemeTokens.newTextPaint();
+        textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
+        textPaint.setTextSize(18f);
+        String digits = composingDigits.toString();
+        if (!digits.isEmpty()) {
+            canvas.drawText(digits, 8, barHeight * 0.35f, textPaint);
+        }
+
+        // 候选词
         candidateRects.clear();
-        if (composingDigits.length() > 0) {
-            float currentX = 30f;
-            textPaint.setTextSize(candidateBarHeight * 0.45f);
-            textPaint.setTextAlign(Paint.Align.LEFT);
-            float yOffset = candidateBarHeight * 0.63f;
-            textPaint.setColor(ThemeTokens.TEXT_ACCENT);
-            for (String cand : candidates) {
-                float w = textPaint.measureText(cand);
-                candidateRects.add(new Rect((int) currentX - 12, 0, (int) (currentX + w + 12), (int) candidateBarHeight));
-                canvas.drawText(cand, currentX, yOffset, textPaint);
-                currentX += w + 35f;
-            }
-            if (totalPages > 1) {
-                float pageY = candidateBarHeight * 0.25f;
-                textPaint.setTextSize(candidateBarHeight * 0.3f);
-                textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-                textPaint.setTextAlign(Paint.Align.RIGHT);
-                canvas.drawText((currentPage + 1) + "/" + totalPages, canvas.getWidth() - 20f, pageY, textPaint);
-            }
+        if (pageCandidates.isEmpty()) return barHeight;
+
+        float itemW = w / (float) pageCandidates.size();
+        textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
+        textPaint.setTextSize(16f);
+        for (int i = 0; i < pageCandidates.size(); i++) {
+            float cx = i * itemW;
+            Rect rect = new Rect((int) cx, (int) (barHeight * 0.4f),
+                    (int) (cx + itemW), (int) barHeight);
+            candidateRects.add(rect);
+            Paint.FontMetrics fm = textPaint.getFontMetrics();
+            float textY = rect.centerY() - (fm.ascent + fm.descent) / 2;
+            canvas.drawText(pageCandidates.get(i), cx + 4, textY, textPaint);
         }
 
-        textPaint.setTextSize(candidateBarHeight * 0.35f);
-        textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText(modeLabel, 12f, candidateBarHeight * 0.55f, textPaint);
-
-        if (keys.isEmpty()) return;
-        float remainingHeight = canvas.getHeight() - candidateBarHeight;
-        int rows = (int) Math.ceil((float) keys.size() / cols);
-        float kh = remainingHeight / rows;
-        for (int i = 0; i < keys.size(); i++) {
-            KeyModel k = keys.get(i);
-            Rect r = k.rect;
-            float l = r.left, t = r.top, r_ = r.right, b = r.bottom;
-            boolean pressed = k.pressed;
-            bgPaint.setColor(pressed ? ThemeTokens.PRESS_BG : ThemeTokens.SURFACE);
-            canvas.drawRect(l, t, r_, b, bgPaint);
-            borderPaint.setColor(pressed ? ThemeTokens.BORDER_ACTIVE : ThemeTokens.BORDER);
-            canvas.drawRect(l, t, r_, b, borderPaint);
-            float cx = (l + r_) / 2f, cy = (t + b) / 2f;
-            String displayLabel = k.label;
-            if (displayLabel != null) {
-                textPaint.setColor(pressed ? ThemeTokens.TEXT_ACCENT : ThemeTokens.TEXT_PRIMARY);
-                float fontSize = kh * (displayLabel.length() > 2 ? 0.22f : 0.3f);
-                if (cols > 3) fontSize *= 1.3f;
-                textPaint.setTextSize(fontSize);
-                textPaint.setTextAlign(Paint.Align.CENTER);
-                canvas.drawText(displayLabel, cx, cy + kh * 0.08f, textPaint);
-            }
+        // 翻页指示
+        if (totalPages > 1) {
+            textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+            textPaint.setTextSize(12f);
+            String pageInfo = (candidatePage + 1) + "/" + totalPages;
+            canvas.drawText(pageInfo, w - 40, barHeight * 0.35f, textPaint);
         }
+
+        return barHeight;
     }
 
     public void drawHorizontalPopup(Canvas canvas, float candidateBarHeight,
-                                     String[] items, int selectedIndex) {
-        if (items == null) return;
-        float boxHeight = candidateBarHeight * 1.2f, boxY = candidateBarHeight + 20f;
-        float boxWidth = canvas.getWidth() * 0.85f, boxX = (canvas.getWidth() - boxWidth) / 2f;
+                                    String[] items, int selectedIndex) {
+        if (items == null || items.length == 0) return;
+        int w = canvas.getWidth();
+        float boxWidth = w * 0.85f, boxX = (w - boxWidth) / 2f;
+        float boxHeight = 60f, boxY = candidateBarHeight + 8f;
+
+        Paint popupPaint = ThemeTokens.newBgPaint();
         popupPaint.setColor(ThemeTokens.SURFACE_RAISED);
-        popupPaint.setStyle(Paint.Style.FILL);
         canvas.drawRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, popupPaint);
-        popupPaint.setColor(ThemeTokens.TEXT_ACCENT);
+
         popupPaint.setStyle(Paint.Style.STROKE);
         popupPaint.setStrokeWidth(3f);
+        popupPaint.setColor(ThemeTokens.BORDER_ACTIVE);
         canvas.drawRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, popupPaint);
+        popupPaint.setStyle(Paint.Style.FILL);
+
         float itemWidth = boxWidth / items.length;
-        textPaint.setTextSize(boxHeight * 0.5f);
-        textPaint.setTextAlign(Paint.Align.CENTER);
+        Paint textPaint = ThemeTokens.newTextPaint();
+        textPaint.setTextSize(20f);
+        textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
         for (int i = 0; i < items.length; i++) {
-            float ix = boxX + i * itemWidth + itemWidth / 2f;
+            float ix = boxX + i * itemWidth;
             if (i == selectedIndex) {
-                popupPaint.setColor(ThemeTokens.PRESS_BG);
-                popupPaint.setStyle(Paint.Style.FILL);
-                canvas.drawRect(boxX + i * itemWidth, boxY, boxX + (i + 1) * itemWidth, boxY + boxHeight, popupPaint);
-                textPaint.setColor(ThemeTokens.TEXT_ACCENT);
-            } else {
-                textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+                Paint selPaint = ThemeTokens.newBgPaint();
+                selPaint.setColor(ThemeTokens.PRESS_BG);
+                canvas.drawRect(ix, boxY, ix + itemWidth, boxY + boxHeight, selPaint);
             }
-            canvas.drawText(items[i], ix, boxY + boxHeight * 0.65f, textPaint);
+            Paint.FontMetrics fm = textPaint.getFontMetrics();
+            float textY = boxY + boxHeight / 2 - (fm.ascent + fm.descent) / 2;
+            float textX = ix + itemWidth / 2 - textPaint.measureText(items[i]) / 2;
+            canvas.drawText(items[i], textX, textY, textPaint);
         }
     }
 }

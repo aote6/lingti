@@ -17,7 +17,7 @@ echo "=== 编译 Java 源文件 ==="
 find "$SRC_DIR" -name "*.java" | sort | xargs ecj -d "$BUILD_DIR/classes" -cp "$ANDROID_JAR"
 
 echo "=== 处理资源 ==="
-aapt package -f -M $MANIFEST -S $RES_DIR -I $ANDROID_JAR -F $BUILD_DIR/resources.apk
+aapt package -f -M $MANIFEST -S $RES_DIR -A $PROJECT_DIR/app/src/main/assets -I $ANDROID_JAR -F $BUILD_DIR/resources.apk
 
 echo "=== 生成 dex ==="
 find $BUILD_DIR/classes -name "*.class" | xargs $BUILD_TOOLS/d8 --lib $ANDROID_JAR --output $BUILD_DIR/
@@ -30,7 +30,7 @@ zip -r $BUILD_DIR/unbounded-release-unsigned.apk . > /dev/null
 
 echo "=== 签名 APK ==="
 KEYSTORE=$PROJECT_DIR/release.keystore
-KEYSTORE_PASS="lingti2026"
+KEYSTORE_PASS="${LINGTI_KEYSTORE_PASS:-lingti2026}"
 KEY_ALIAS="lingti"
 
 if [ ! -f "$KEYSTORE" ]; then

@@ -61,9 +61,7 @@ public class SimpleImeService extends InputMethodService {
 
     private KeyboardLayout resolveLayout(String layoutId) {
         switch (layoutId) {
-            case "qwerty26":
-                if (qwertyLayout == null) qwertyLayout = new Qwerty26Layout();
-                return qwertyLayout;
+            case "qwerty26": return null;
             case "unexpected_terminal": return new UnexpectedTerminalLayout();
             default: return null;
         }
@@ -206,7 +204,8 @@ public class SimpleImeService extends InputMethodService {
             keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
         } else {
             String configFile = "default.json";
-            if ("keyevent".equals(currentBehavior)) configFile = "default_ninekey_terminal.json";
+            if ("qwerty26".equals(currentLayout)) configFile = "qwerty26.json";
+            else if ("keyevent".equals(currentBehavior)) configFile = "default_ninekey_terminal.json";
             else if ("direct".equals(currentBehavior)) configFile = "default_english.json";
             RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
             List<KeyModel> keys = layoutConfig.toKeyModels();

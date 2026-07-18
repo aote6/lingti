@@ -75,30 +75,16 @@ public class KeyboardGestureController {
         private final KeyboardGestureController ctrl;
         LongPressTask(KeyboardGestureController ctrl) { this.ctrl = ctrl; }
         public void run() {
-            if (ctrl.activeKey != null && !ctrl.isGestureConsumed) {
+            if (ctrl.activeKey != null && !ctrl.isGestureConsumed && ctrl.activeKey.longPress != null) {
                 ctrl.isLongPressed = true;
                 ctrl.isGestureConsumed = true;
-                ctrl.currentPopupItems = getPopupItemsForKey(ctrl.activeKey);
-                ctrl.longPressSelectedIndex = 0;
+                ctrl.dispatcher.onCommand(ctrl.activeKey.longPress);
                 ctrl.session.invalidateView();
             }
         }
     }
 
-    private static String[] getPopupItemsForKey(KeyModel k) {
-        if (k == null || k.label == null) return new String[]{"?"};
-        switch (k.label) {
-            case "ABC": return new String[]{"A","B","C","2","a","b","c"};
-            case "DEF": return new String[]{"D","E","F","3","d","e","f"};
-            case "GHI": return new String[]{"G","H","I","4","g","h","i"};
-            case "JKL": return new String[]{"J","K","L","5","j","k","l"};
-            case "MNO": return new String[]{"M","N","O","6","m","n","o"};
-            case "PQRS": return new String[]{"P","Q","R","S","7"};
-            case "TUV": return new String[]{"T","U","V","8"};
-            case "WXYZ": return new String[]{"W","X","Y","Z","9"};
-            default: return new String[]{k.label};
-        }
-    }
+
 
     public KeyModel getActiveKey() { return activeKey; }
     public boolean isLongPressed() { return isLongPressed; }
@@ -126,7 +112,6 @@ public class KeyboardGestureController {
         float x = event.getX(), y = event.getY();
         float barHeight = session.candidateBarHeight();
         float dp = session.getDpScale();
-        float popupItemWidth = 50 * dp;
         float pageScrollThreshold = 12 * dp;
 
         switch (event.getAction()) {
@@ -187,14 +172,7 @@ public class KeyboardGestureController {
                     }
                     return true;
                 }
-                if (isLongPressed && currentPopupItems != null) {
-                    float popupBoxX = session.getPopupBoxX();
-                    float pw = session.getPopupItemWidth();
-                    if (pw <= 0) pw = popupItemWidth;
-                    int idx = (int) ((x - popupBoxX) / pw);
-                    if (idx < 0) idx = 0;
-                    if (idx >= currentPopupItems.length) idx = currentPopupItems.length - 1;
-                    if (idx != longPressSelectedIndex) { longPressSelectedIndex = idx; session.invalidateView(); }
+                if (isLongPressed) {
                     return true;
                 }
                 if (!isGestureConsumed) {

@@ -136,11 +136,10 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         }
 
         LayoutProfile profile = layoutManager.getProfile();
-        List<KeyModel> keys = profile != null ? profile.allKeys() : new ArrayList<KeyModel>();
-        renderer.drawKeyboard(canvas, keys, candidateBarHeight,
+        renderer.drawKeyboard(canvas, profile, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed(),
                 composingDigits, pageCandidates, candidateRects,
-                candidatePage, totalPages, modeLabel, cols);
+                candidatePage, totalPages, modeLabel);
         if (gestureController.isLongPressed() && gestureController.getCurrentPopupItems() != null) {
             String[] items = gestureController.getCurrentPopupItems();
             float boxWidth = canvas.getWidth() * 0.85f;

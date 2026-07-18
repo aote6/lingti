@@ -26,7 +26,8 @@ public class RuleLoader {
             List<KeyModel> models = new ArrayList<>();
             for (KeyDef d : keys) {
                 String id = d.explicitLabel != null ? d.explicitLabel : d.label();
-                KeyModel m = new KeyModel(id, id, 1f, 2, 2, 2, 2);
+                float span = d.span > 0 ? d.span : 1f;
+                KeyModel m = new KeyModel(id, id, span, 2, 2, 2, 2);
                 m.tap = d.tap;
                 m.swipeUp = d.swipeUp;
                 m.swipeDown = d.swipeDown;
@@ -73,6 +74,7 @@ public class RuleLoader {
                 if (obj == null) continue;
                 KeyDef key = new KeyDef();
                 key.explicitLabel = obj.optString("label", null);
+                key.span = (float) obj.optDouble("span", 1f);
                 key.tap = parseCommand(obj.optJSONObject("tap"));
                 key.swipeUp = parseCommand(obj.optJSONObject("swipeUp"));
                 key.swipeDown = parseCommand(obj.optJSONObject("swipeDown"));
@@ -86,6 +88,10 @@ public class RuleLoader {
             cache.put(fileName, config);
         } catch (Exception e) {
             SimpleImeService.log(context, "RuleLoader 加载失败: " + e.getMessage());
+        java.io.StringWriter sw = new java.io.StringWriter();
+        java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+        e.printStackTrace(pw);
+        SimpleImeService.log(context, sw.toString());
         }
         return config;
     }
@@ -119,6 +125,7 @@ public class RuleLoader {
 
     public static class KeyDef {
         public String explicitLabel;
+        public float span = 1f;
         public Command tap;
         public Command swipeUp;
         public Command swipeDown;
