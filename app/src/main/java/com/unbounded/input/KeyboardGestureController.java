@@ -26,6 +26,9 @@ public class KeyboardGestureController {
         List<android.graphics.Rect> candidateRects();
         float candidateBarHeight();
         void invalidateView();
+        void nextPage();
+        void prevPage();
+        int getTotalCandidatePages();
     }
 
     public KeyboardGestureController(List<KeySlot> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
@@ -79,7 +82,10 @@ public class KeyboardGestureController {
                     List<String> cands = session.candidates();
                     for (int i = 0; i < rects.size(); i++) {
                         if (rects.get(i).contains((int) x, (int) y)) {
-                            dispatcher.onCommand(new InsertText(cands.get(i)));
+                            int globalIndex = i; // 点击的是当前页的第i个，直接取cands对应
+                            if (globalIndex < cands.size()) {
+                                dispatcher.onCommand(new InsertText(cands.get(globalIndex)));
+                            }
                             session.composingDigits().setLength(0);
                             cands.clear();
                             session.invalidateView();
@@ -95,7 +101,18 @@ public class KeyboardGestureController {
                 }
                 return true;
             case MotionEvent.ACTION_MOVE:
-                if (activeKey == null) return true;
+                if (activeKey == null) {
+                    // 候选栏区域上下滑动翻页
+                    if (startY < barHeight && y < barHeight && session.getTotalCandidatePages() > 1) {
+                        float dy = y - startY;
+                        if (Math.abs(dy) > 40f) {
+                            if (dy > 0) session.nextPage(); else session.prevPage();
+                            startY = y;
+                            session.invalidateView();
+                        }
+                    }
+                    return true;
+                }
                 if (isLongPressed && currentPopupItems != null) {
                     int idx = (int) ((x - startX) / 50);
                     if (idx < 0) idx = 0;

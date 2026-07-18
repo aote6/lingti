@@ -47,7 +47,8 @@ public class KeyboardRenderer {
     public void drawKeyboard(Canvas canvas, List<KeySlot> keys, float candidateBarHeight,
                               KeySlot activeKey, boolean isLongPressed,
                               StringBuilder composingDigits, List<String> candidates,
-                              List<Rect> candidateRects) {
+                              List<Rect> candidateRects,
+                              int currentPage, int totalPages) {
         canvas.drawColor(ThemeTokens.BG);
         borderPaint.setColor(ThemeTokens.BORDER);
         canvas.drawLine(0, candidateBarHeight, canvas.getWidth(), candidateBarHeight, borderPaint);
@@ -55,15 +56,25 @@ public class KeyboardRenderer {
         candidateRects.clear();
         if (composingDigits.length() > 0) {
             float currentX = 30f;
-            textPaint.setTextSize(candidateBarHeight * 0.5f);
+            textPaint.setTextSize(candidateBarHeight * 0.45f);
             textPaint.setTextAlign(Paint.Align.LEFT);
-            float yOffset = candidateBarHeight * 0.65f;
+            float yOffset = candidateBarHeight * 0.63f;
             textPaint.setColor(ThemeTokens.TEXT_ACCENT);
             for (String cand : candidates) {
                 float w = textPaint.measureText(cand);
-                candidateRects.add(new Rect((int) currentX - 15, 0, (int) (currentX + w + 15), (int) candidateBarHeight));
+                candidateRects.add(new Rect((int) currentX - 12, 0, (int) (currentX + w + 12), (int) candidateBarHeight));
                 canvas.drawText(cand, currentX, yOffset, textPaint);
-                currentX += w + 45f;
+                currentX += w + 35f;
+            }
+
+            // 翻页指示器
+            if (totalPages > 1) {
+                float pageY = candidateBarHeight * 0.25f;
+                textPaint.setTextSize(candidateBarHeight * 0.3f);
+                textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
+                textPaint.setTextAlign(Paint.Align.RIGHT);
+                String pageInfo = (currentPage + 1) + "/" + totalPages;
+                canvas.drawText(pageInfo, canvas.getWidth() - 20f, pageY, textPaint);
             }
         }
 

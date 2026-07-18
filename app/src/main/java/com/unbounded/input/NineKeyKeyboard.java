@@ -10,6 +10,7 @@ import java.util.List;
 
 public class NineKeyKeyboard extends View implements KeyboardGestureController.SessionAccess {
     static final int COLS = 3, PAD = 2;
+    static final int CANDIDATE_PAGE_SIZE = 4;
 
     private final List<KeySlot> keys = new ArrayList<>();
     private final KeyboardRenderer renderer = new KeyboardRenderer();
@@ -18,6 +19,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private final StringBuilder composingDigits = new StringBuilder();
     private final List<String> candidates = new ArrayList<>();
     private final List<Rect> candidateRects = new ArrayList<>();
+    private int candidatePage = 0;
     private float candidateBarHeight;
 
     public NineKeyKeyboard(Context context, KeyboardActionDispatcher dispatcher, List<RuleLoader.KeyDef> defs) {
@@ -31,17 +33,31 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         gestureController = new KeyboardGestureController(keys, dispatcher, this);
     }
 
-    // --- SessionAccess 接口 ---
     @Override public StringBuilder composingDigits() { return composingDigits; }
     @Override public List<String> candidates() { return candidates; }
     @Override public List<Rect> candidateRects() { return candidateRects; }
     @Override public float candidateBarHeight() { return candidateBarHeight; }
     @Override public void invalidateView() { invalidate(); }
 
+    public int getCandidatePage() { return candidatePage; }
+    public int getTotalCandidatePages() {
+        if (candidates.isEmpty()) return 0;
+        return (candidates.size() - 1) / CANDIDATE_PAGE_SIZE + 1;
+    }
+    public void nextPage() {
+        int total = getTotalCandidatePages();
+        if (total > 1) candidatePage = (candidatePage + 1) % total;
+    }
+    public void prevPage() {
+        int total = getTotalCandidatePages();
+        if (total > 1) candidatePage = (candidatePage - 1 + total) % total;
+    }
+
     public void resetSession() {
         composingDigits.setLength(0);
         candidates.clear();
         candidateRects.clear();
+        candidatePage = 0;
         gestureController.reset();
         invalidate();
     }
@@ -73,9 +89,15 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
 
     @Override
     protected void onDraw(Canvas canvas) {
+        int start = candidatePage * CANDIDATE_PAGE_SIZE;
+        int end = Math.min(start + CANDIDATE_PAGE_SIZE, candidates.size());
+        List<String> pageCandidates = candidates.subList(start, end);
+        int totalPages = getTotalCandidatePages();
+
         renderer.drawKeyboard(canvas, keys, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed(),
-                composingDigits, candidates, candidateRects);
+                composingDigits, pageCandidates, candidateRects,
+                candidatePage, totalPages);
         if (gestureController.isLongPressed() && gestureController.getCurrentPopupItems() != null) {
             renderer.drawHorizontalPopup(canvas, candidateBarHeight,
                     gestureController.getCurrentPopupItems(),
