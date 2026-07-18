@@ -41,6 +41,11 @@ ecj -d $BUILD_DIR/classes \
     $SRC_DIR/core/layout/LayoutProfile.java \
     $SRC_DIR/core/layout/KeyboardLayout.java \
     $SRC_DIR/core/layout/LayoutManager.java \
+    $SRC_DIR/core/candidate/CandidateProvider.java \
+    $SRC_DIR/core/candidate/T9Provider.java \
+    $SRC_DIR/core/candidate/CandidateEngine.java \
+    $SRC_DIR/core/theme/ThemeProfile.java \
+    $SRC_DIR/core/theme/ThemeManager.java \
     $SRC_DIR/layouts/nine/NineKeyLayout.java \
     $SRC_DIR/layouts/qwerty/Qwerty26Layout.java \
     $SRC_DIR/layouts/terminal/UnexpectedTerminalLayout.java

@@ -15,19 +15,26 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
 
+import com.unbounded.input.core.layout.KeyModel;
+import com.unbounded.input.core.layout.KeyboardLayout;
+import com.unbounded.input.layouts.qwerty.Qwerty26Layout;
+import com.unbounded.input.layouts.terminal.UnexpectedTerminalLayout;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class SimpleImeService extends InputMethodService {
     private static File logFile;
     private NineKeyKeyboard keyboardView;
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
-    private String currentContext = "chinese";
+    private String currentLayout = "ninekey";
+    private String currentBehavior = "t9";
     private SharedPreferences prefs;
 
     private static String detectContext(EditorInfo info) {
@@ -43,19 +50,28 @@ public class SimpleImeService extends InputMethodService {
         return "chinese";
     }
 
-    private static String configFileForContext(String context) {
-        switch (context) {
-            case "terminal": return "default_terminal.json";
-            case "english": return "default_english.json";
-            case "chinese":
-            default: return "default.json";
-        }
-    }
-
     private int getKeyboardHeight() {
         if (prefs == null) prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
         int dp = prefs.getInt("keyboard_height", 280);
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
+    }
+
+    private KeyboardLayout resolveLayout(String layoutId, String behavior) {
+        switch (layoutId) {
+            case "qwerty26": return new Qwerty26Layout();
+            case "unexpected_terminal": return new UnexpectedTerminalLayout();
+            default: return null; // ninekey 走旧 JSON 加载
+        }
+    }
+
+    private NineKeyKeyboard.InputMode resolveInputMode(String layoutId, String behavior) {
+        if ("unexpected_terminal".equals(layoutId) || "keyevent".equals(behavior)) {
+            return NineKeyKeyboard.InputMode.TERMINAL;
+        }
+        if ("qwerty26".equals(layoutId) || "direct".equals(behavior)) {
+            return NineKeyKeyboard.InputMode.ENGLISH;
+        }
+        return NineKeyKeyboard.InputMode.CHINESE;
     }
 
     public static void log(Context ctx, String msg) {
@@ -102,22 +118,26 @@ public class SimpleImeService extends InputMethodService {
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
 
-        String detected = detectContext(info);
-        // 如果用户没设置默认模式，用场景检测；否则非终端/编辑器场景用用户默认
-        String defaultMode = prefs.getString("default_mode", "");
-        if (!"terminal".equals(detected) && !"english".equals(detected) && !defaultMode.isEmpty()) {
-            detected = defaultMode;
+        String detectedLayout = prefs.getString("default_layout", "ninekey");
+        String detectedBehavior = prefs.getString("default_behavior", "t9");
+        String detectedContext = detectContext(info);
+
+        // 终端场景强制覆盖
+        if ("terminal".equals(detectedContext)) {
+            detectedLayout = "unexpected_terminal";
+            detectedBehavior = "keyevent";
+        } else if ("english".equals(detectedContext) && "ninekey".equals(detectedLayout)) {
+            detectedBehavior = "direct";
         }
 
-        if (!detected.equals(currentContext) || keyboardView == null) {
-            currentContext = detected;
-            log(this, "场景切换: " + info.packageName + " -> " + currentContext);
+        if (!detectedLayout.equals(currentLayout) || !detectedBehavior.equals(currentBehavior) || keyboardView == null) {
+            currentLayout = detectedLayout;
+            currentBehavior = detectedBehavior;
+            log(this, "切换布局: " + currentLayout + " / " + currentBehavior);
             rebuildKeyboard();
         }
 
-        if (keyboardView != null) {
-            keyboardView.resetSession();
-        }
+        if (keyboardView != null) keyboardView.resetSession();
         focusHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -134,7 +154,6 @@ public class SimpleImeService extends InputMethodService {
         if (root instanceof FrameLayout) {
             FrameLayout container = (FrameLayout) root;
             container.removeAllViews();
-
             int h = getKeyboardHeight();
 
             KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
@@ -145,18 +164,21 @@ public class SimpleImeService extends InputMethodService {
                 }
             };
 
-            String configFile = configFileForContext(currentContext);
-            RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
-            keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
+            KeyboardLayout layout = resolveLayout(currentLayout, currentBehavior);
+            NineKeyKeyboard.InputMode mode = resolveInputMode(currentLayout, currentBehavior);
 
-            if ("english".equals(layoutConfig.context)) {
-                keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
-            } else if ("terminal".equals(layoutConfig.context)) {
-                keyboardView.setInputMode(NineKeyKeyboard.InputMode.TERMINAL);
+            if (layout != null) {
+                // 新布局（Qwerty26 / UnexpectedTerminal）
+                List<KeyModel> keys = layout.build().allKeys();
+                keyboardView = new NineKeyKeyboard(this, dispatcher, keys);
             } else {
-                keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
+                // 九宫格：走 JSON
+                String configFile = "default.json";
+                if ("direct".equals(currentBehavior)) configFile = "default_english.json";
+                RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
+                keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
             }
-
+            keyboardView.setInputMode(mode);
             keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
             container.addView(keyboardView);
         }
@@ -165,17 +187,13 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onFinishInput() {
         super.onFinishInput();
-        if (keyboardView != null) {
-            keyboardView.resetSession();
-        }
+        if (keyboardView != null) keyboardView.resetSession();
     }
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
         super.onFinishInputView(finishingInput);
-        if (keyboardView != null) {
-            keyboardView.resetSession();
-        }
+        if (keyboardView != null) keyboardView.resetSession();
     }
 
     @Override
@@ -184,18 +202,13 @@ public class SimpleImeService extends InputMethodService {
                                    int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
                                 candidatesStart, candidatesEnd);
-        if (keyboardView != null && oldSelStart != newSelStart) {
-            keyboardView.resetSession();
-        }
+        if (keyboardView != null && oldSelStart != newSelStart) keyboardView.resetSession();
     }
 
     @Override
     public void onWindowShown() {
         super.onWindowShown();
-        if (keyboardView != null) {
-            keyboardView.requestLayout();
-            keyboardView.invalidate();
-        }
+        if (keyboardView != null) { keyboardView.requestLayout(); keyboardView.invalidate(); }
     }
 
     @Override
@@ -217,16 +230,7 @@ public class SimpleImeService extends InputMethodService {
 
         RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, "default.json");
         keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
-        currentContext = layoutConfig.context;
-
-        if ("english".equals(layoutConfig.context)) {
-            keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
-        } else if ("terminal".equals(layoutConfig.context)) {
-            keyboardView.setInputMode(NineKeyKeyboard.InputMode.TERMINAL);
-        } else {
-            keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
-        }
-
+        keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
         keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
         container.addView(keyboardView);
         return container;
@@ -238,7 +242,6 @@ public class SimpleImeService extends InputMethodService {
         super.onDestroy();
     }
 
-    // 供 MainActivity 调用：打开设置界面
     public static void openSettings(Context ctx) {
         Intent intent = new Intent(ctx, SettingsActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
