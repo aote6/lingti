@@ -7,7 +7,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.unbounded.input.core.layout.KeyModel;
 import com.unbounded.input.core.command.KeyEventCommand;
@@ -23,7 +25,8 @@ public class RuleLoader {
         public List<KeyModel> toKeyModels() {
             List<KeyModel> models = new ArrayList<>();
             for (KeyDef d : keys) {
-                KeyModel m = new KeyModel(d.label(), d.label(), 1f, 2, 2, 2, 2);
+                String id = d.explicitLabel != null ? d.explicitLabel : d.label();
+                KeyModel m = new KeyModel(id, id, 1f, 2, 2, 2, 2);
                 m.tap = d.tap;
                 m.swipeUp = d.swipeUp;
                 m.swipeDown = d.swipeDown;
@@ -36,11 +39,12 @@ public class RuleLoader {
         }
     }
 
-    private static final java.util.Map<String, LayoutConfig> cache = new java.util.HashMap<>();
+    private static final Map<String, LayoutConfig> cache = new HashMap<>();
 
     public static LayoutConfig load(Context context, String fileName) {
         LayoutConfig cached = cache.get(fileName);
         if (cached != null) return cached;
+
         LayoutConfig config = new LayoutConfig();
         try {
             InputStream is = context.getAssets().open(fileName);
@@ -65,8 +69,10 @@ public class RuleLoader {
 
             JSONArray arr = root.getJSONArray("keys");
             for (int i = 0; i < arr.length(); i++) {
-                JSONObject obj = arr.getJSONObject(i);
+                JSONObject obj = arr.optJSONObject(i);
+                if (obj == null) continue;
                 KeyDef key = new KeyDef();
+                key.explicitLabel = obj.optString("label", null);
                 key.tap = parseCommand(obj.optJSONObject("tap"));
                 key.swipeUp = parseCommand(obj.optJSONObject("swipeUp"));
                 key.swipeDown = parseCommand(obj.optJSONObject("swipeDown"));
@@ -75,10 +81,12 @@ public class RuleLoader {
                 key.longPress = parseCommand(obj.optJSONObject("longPress"));
                 config.keys.add(key);
             }
+
+            // 只有成功才缓存
+            cache.put(fileName, config);
         } catch (Exception e) {
             SimpleImeService.log(context, "RuleLoader 加载失败: " + e.getMessage());
         }
-        cache.put(fileName, config);
         return config;
     }
 
@@ -110,6 +118,7 @@ public class RuleLoader {
     }
 
     public static class KeyDef {
+        public String explicitLabel;
         public Command tap;
         public Command swipeUp;
         public Command swipeDown;
@@ -118,7 +127,9 @@ public class RuleLoader {
         public Command longPress;
 
         public String label() {
+            if (explicitLabel != null && !explicitLabel.isEmpty()) return explicitLabel;
             if (tap != null && tap.type == Command.Type.INSERT_TEXT && !tap.text.isEmpty()) return tap.text;
+            if (tap != null && tap.type == Command.Type.BACKSPACE) return "⌫";
             if (tap != null) return tap.type.name().toLowerCase();
             return "?";
         }

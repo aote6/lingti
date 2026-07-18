@@ -8,7 +8,7 @@ public class KeyChordCommand extends Command {
 
     public KeyChordCommand(int[] keyCodes, int metaState) {
         super(Type.KEY_CHORD, "");
-        this.keyCodes = keyCodes;
+        this.keyCodes = keyCodes != null ? keyCodes : new int[0];
         this.metaState = metaState;
     }
 

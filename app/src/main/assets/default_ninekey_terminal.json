@@ -3,17 +3,17 @@
   "layout": "ninekey_terminal",
   "context": "terminal",
   "keys": [
-    {"tap": {"type": "key_event", "keyCode": 111}, "longPress": {"type": "key_event", "keyCode": 111}},
-    {"tap": {"type": "key_event", "keyCode": 61}, "longPress": {"type": "key_event", "keyCode": 61}},
-    {"tap": {"type": "key_event", "keyCode": 67}, "longPress": {"type": "key_event", "keyCode": 67}},
-    {"tap": {"type": "key_event", "keyCode": 19}, "swipeUp": {"type": "key_event", "keyCode": 19}, "swipeLeft": {"type": "key_event", "keyCode": 21}, "swipeDown": {"type": "key_event", "keyCode": 20}, "swipeRight": {"type": "key_event", "keyCode": 22}},
-    {"tap": {"type": "key_event", "keyCode": 3}, "swipeUp": {"type": "key_event", "keyCode": 92}, "swipeLeft": {"type": "key_event", "keyCode": 123}, "swipeDown": {"type": "key_event", "keyCode": 93}, "swipeRight": {"type": "key_event", "keyCode": 66}},
-    {"tap": {"type": "key_chord", "keyCodes": [113, 67]}, "swipeUp": {"type": "key_chord", "keyCodes": [113, 68]}, "swipeLeft": {"type": "key_chord", "keyCodes": [113, 90]}, "swipeDown": {"type": "key_chord", "keyCodes": [113, 65]}, "swipeRight": {"type": "key_chord", "keyCodes": [113, 86]}},
-    {"tap": {"type": "insert", "text": "/"}, "swipeUp": {"type": "insert", "text": "\\"}, "swipeLeft": {"type": "insert", "text": "$"}, "swipeDown": {"type": "insert", "text": "|"}, "swipeRight": {"type": "insert", "text": "*"}},
-    {"tap": {"type": "insert", "text": "-"}, "swipeUp": {"type": "insert", "text": "_"}, "swipeLeft": {"type": "insert", "text": "="}, "swipeDown": {"type": "insert", "text": "+"}, "swipeRight": {"type": "insert", "text": "<"}},
-    {"tap": {"type": "insert", "text": ":"}, "swipeUp": {"type": "insert", "text": ";"}, "swipeLeft": {"type": "insert", "text": "\""}, "swipeDown": {"type": "insert", "text": "'"}, "swipeRight": {"type": "insert", "text": ">"}},
-    {"tap": {"type": "insert", "text": "!"}, "swipeUp": {"type": "insert", "text": "@"}, "swipeLeft": {"type": "insert", "text": "#"}, "swipeDown": {"type": "insert", "text": "%"}, "swipeRight": {"type": "insert", "text": "^"}},
-    {"tap": {"type": "insert", "text": " "}, "swipeUp": {"type": "insert", "text": "0"}, "swipeLeft": {"type": "insert", "text": " "}, "swipeDown": {"type": "insert", "text": "."}, "swipeRight": {"type": "insert", "text": ","}},
-    {"tap": {"type": "backspace"}, "swipeUp": {"type": "key_event", "keyCode": 66}, "swipeLeft": {"type": "backspace"}, "swipeDown": {"type": "key_event", "keyCode": 67}, "swipeRight": {"type": "key_event", "keyCode": 124}}
+    {"label": "Esc", "tap": {"type": "key_event", "keyCode": 111}, "longPress": {"type": "key_event", "keyCode": 111}},
+    {"label": "Tab", "tap": {"type": "key_event", "keyCode": 61}, "longPress": {"type": "key_event", "keyCode": 61}},
+    {"label": "Del", "tap": {"type": "key_event", "keyCode": 67}, "longPress": {"type": "key_event", "keyCode": 67}},
+    {"label": "←→↑↓", "tap": {"type": "key_event", "keyCode": 19}, "swipeUp": {"type": "key_event", "keyCode": 19}, "swipeLeft": {"type": "key_event", "keyCode": 21}, "swipeDown": {"type": "key_event", "keyCode": 20}, "swipeRight": {"type": "key_event", "keyCode": 22}},
+    {"label": "Home", "tap": {"type": "key_event", "keyCode": 122}, "swipeUp": {"type": "key_event", "keyCode": 92}, "swipeLeft": {"type": "key_event", "keyCode": 123}, "swipeDown": {"type": "key_event", "keyCode": 93}, "swipeRight": {"type": "key_event", "keyCode": 66}},
+    {"label": "C-c", "tap": {"type": "key_chord", "keyCodes": [113, 31]}, "swipeUp": {"type": "key_chord", "keyCodes": [113, 32]}, "swipeLeft": {"type": "key_chord", "keyCodes": [113, 54]}, "swipeDown": {"type": "key_chord", "keyCodes": [113, 29]}, "swipeRight": {"type": "key_chord", "keyCodes": [113, 50]}},
+    {"label": "/", "tap": {"type": "insert", "text": "/"}, "swipeUp": {"type": "insert", "text": "\\"}, "swipeLeft": {"type": "insert", "text": "$"}, "swipeDown": {"type": "insert", "text": "|"}, "swipeRight": {"type": "insert", "text": "*"}},
+    {"label": "-", "tap": {"type": "insert", "text": "-"}, "swipeUp": {"type": "insert", "text": "_"}, "swipeLeft": {"type": "insert", "text": "="}, "swipeDown": {"type": "insert", "text": "+"}, "swipeRight": {"type": "insert", "text": "<"}},
+    {"label": ":", "tap": {"type": "insert", "text": ":"}, "swipeUp": {"type": "insert", "text": ";"}, "swipeLeft": {"type": "insert", "text": "\""}, "swipeDown": {"type": "insert", "text": "'"}, "swipeRight": {"type": "insert", "text": ">"}},
+    {"label": "!", "tap": {"type": "insert", "text": "!"}, "swipeUp": {"type": "insert", "text": "@"}, "swipeLeft": {"type": "insert", "text": "#"}, "swipeDown": {"type": "insert", "text": "%"}, "swipeRight": {"type": "insert", "text": "^"}},
+    {"label": "Space", "tap": {"type": "insert", "text": " "}, "swipeUp": {"type": "insert", "text": "0"}, "swipeLeft": {"type": "insert", "text": " "}, "swipeDown": {"type": "insert", "text": "."}, "swipeRight": {"type": "insert", "text": ","}},
+    {"label": "⌫", "tap": {"type": "backspace"}, "swipeUp": {"type": "key_event", "keyCode": 66}, "swipeLeft": {"type": "backspace"}, "swipeDown": {"type": "key_event", "keyCode": 67}, "swipeRight": {"type": "key_event", "keyCode": 124}}
   ]
 }

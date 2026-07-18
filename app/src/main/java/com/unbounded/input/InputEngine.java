@@ -1,5 +1,6 @@
 package com.unbounded.input;
 
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.inputmethod.InputConnection;
 
@@ -7,36 +8,24 @@ import com.unbounded.input.core.command.KeyEventCommand;
 import com.unbounded.input.core.command.KeyChordCommand;
 
 public class InputEngine {
+    private static final String TAG = "InputEngine";
+
     public static void execute(InputConnection ic, Command cmd) {
         if (ic == null || cmd == null) return;
         switch (cmd.type) {
             case INSERT_TEXT:
-                if (!cmd.text.isEmpty()) {
+                if (cmd.text != null && !cmd.text.isEmpty()) {
                     ic.beginBatchEdit();
                     ic.commitText(cmd.text, 1);
                     ic.endBatchEdit();
                 }
                 break;
             case BACKSPACE:
-                ic.deleteSurroundingText(1, 0);
+                deleteCharBeforeCursor(ic);
                 break;
             case COMMIT:
                 ic.finishComposingText();
                 break;
-            case SPACE:
-                ic.commitText(" ", 1);
-                break;
-            case ENTER:
-                ic.commitText("\n", 1);
-                break;
-            case DEL:
-                ic.deleteSurroundingText(1, 0);
-                break;
-            case TAB:
-                ic.commitText("\t", 1);
-                break;
-            case ESC:
-            case NOOP:
             case SHIFT_TOGGLE:
             case SYMBOL_TOGGLE:
                 break;
@@ -60,6 +49,31 @@ public class InputEngine {
                     }
                 }
                 break;
+            default:
+                Log.w(TAG, "Unhandled command type: " + cmd.type);
+                break;
         }
+    }
+
+    private static void deleteCharBeforeCursor(InputConnection ic) {
+        CharSequence before = ic.getTextBeforeCursor(2, 0);
+        if (before != null && before.length() > 0) {
+            char last = before.charAt(before.length() - 1);
+            if (Character.isHighSurrogate(last) && before.length() >= 2) {
+                char secondLast = before.charAt(before.length() - 2);
+                if (Character.isLowSurrogate(secondLast)) {
+                    ic.deleteSurroundingText(2, 0);
+                    return;
+                }
+            }
+            if (Character.isLowSurrogate(last) && before.length() >= 2) {
+                char secondLast = before.charAt(before.length() - 2);
+                if (Character.isHighSurrogate(secondLast)) {
+                    ic.deleteSurroundingText(2, 0);
+                    return;
+                }
+            }
+        }
+        ic.deleteSurroundingText(1, 0);
     }
 }

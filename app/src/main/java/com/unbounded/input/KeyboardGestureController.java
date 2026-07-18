@@ -217,7 +217,7 @@ public class KeyboardGestureController {
                 longPressHandler.removeCallbacks(longPressRunnable);
                 if (isLongPressed && currentPopupItems != null && longPressSelectedIndex >= 0) {
                     dispatcher.onCommand(new InsertText(currentPopupItems[longPressSelectedIndex]));
-                    T9Engine.onCandidateSelected(currentPopupItems[longPressSelectedIndex]);
+                    
                     isLongPressed = false; currentPopupItems = null;
                     if (activeKey != null) activeKey.pressed = false;
                     activeKey = null;

@@ -275,6 +275,16 @@ public class SimpleImeService extends InputMethodService {
         KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
             @Override
             public void onCommand(Command cmd) {
+                if (cmd.type == Command.Type.SHIFT_TOGGLE) {
+                    if (qwertyLayout != null) qwertyLayout.toggleShift();
+                    rebuildKeyboard();
+                    return;
+                }
+                if (cmd.type == Command.Type.SYMBOL_TOGGLE) {
+                    if (qwertyLayout != null) qwertyLayout.toggleSymbol();
+                    rebuildKeyboard();
+                    return;
+                }
                 InputConnection ic = getCurrentInputConnection();
                 if (ic != null) InputEngine.execute(ic, cmd);
             }

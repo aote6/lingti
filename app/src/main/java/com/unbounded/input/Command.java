@@ -4,7 +4,6 @@ public abstract class Command {
     public enum Type {
         INSERT_TEXT, BACKSPACE, COMMIT,
         KEY_EVENT, KEY_CHORD,
-        SPACE, ENTER, DEL, TAB, ESC, NOOP,
         SHIFT_TOGGLE, SYMBOL_TOGGLE
     }
 
@@ -21,8 +20,11 @@ public abstract class Command {
     public static Command commit() { return new Commit(); }
     // 文本插入，非系统键。系统键事件请用 KeyEventCommand
     public static Command space() { return new InsertText(" "); }
+    // 文本插入，非系统键。系统键事件请用 KeyEventCommand
     public static Command enter() { return new InsertText("\n"); }
+    // 文本插入，非系统键。系统键事件请用 KeyEventCommand
     public static Command del() { return new Backspace(); }
+    // 文本插入，非系统键。系统键事件请用 KeyEventCommand
     public static Command tab() { return new InsertText("\t"); }
     public static Command noop() { return new InsertText(""); }
     public static Command shiftToggle() { return new ShiftToggle(); }
