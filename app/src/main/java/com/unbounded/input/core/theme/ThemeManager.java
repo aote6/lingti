@@ -1,3 +1,4 @@
+// 主题管理器：按名称切换ThemeProfile
 package com.unbounded.input.core.theme;
 
 public class ThemeManager {

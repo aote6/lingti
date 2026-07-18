@@ -1,3 +1,4 @@
+// 主题取色：静态颜色常量+ThemeProfile刷新，供Renderer使用
 package com.unbounded.input;
 
 import android.graphics.Paint;

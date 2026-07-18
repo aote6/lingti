@@ -1,3 +1,4 @@
+// 系统按键命令：发送真实KeyEvent（Esc/Tab/Enter/方向键）
 package com.unbounded.input.core.command;
 
 import com.unbounded.input.Command;

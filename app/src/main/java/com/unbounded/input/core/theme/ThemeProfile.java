@@ -1,3 +1,4 @@
+// 主题配置：bg/surface/text颜色值，提供Default/Amber/IBM预设
 package com.unbounded.input.core.theme;
 
 import android.graphics.Typeface;

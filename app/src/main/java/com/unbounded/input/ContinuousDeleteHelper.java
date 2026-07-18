@@ -1,3 +1,4 @@
+// 连续触发工具：长按时每隔N毫秒重复执行Command
 package com.unbounded.input;
 
 import android.os.Handler;

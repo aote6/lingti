@@ -1,3 +1,4 @@
+// 按键模型：label/span/rect + 6个Command（tap/四向swipe/longPress）
 package com.unbounded.input.core.layout;
 
 import android.graphics.Rect;

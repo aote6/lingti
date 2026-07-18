@@ -1,3 +1,4 @@
+// 键盘View：持有Renderer和GestureController，管理剪贴板面板状态
 package com.unbounded.input;
 
 import android.content.Context;
@@ -18,6 +19,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
 
     private float candidateBarHeight;
     private float dpScale = 1f;
+    private boolean clipboardPanelOpen = false;
 
     public enum InputMode { CHINESE, ENGLISH, TERMINAL }
     private InputMode inputMode = InputMode.TERMINAL;
@@ -43,6 +45,16 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
 
     @Override public void invalidateView() { invalidate(); }
 
+    public void openClipboardPanel() {
+        clipboardPanelOpen = true;
+        invalidate();
+    }
+
+    public void closeClipboardPanel() {
+        clipboardPanelOpen = false;
+        invalidate();
+    }
+
     public void resetSession() {
         gestureController.reset();
         invalidate();
@@ -61,10 +73,29 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         LayoutProfile profile = layoutManager.getProfile();
         renderer.drawKeyboard(canvas, profile, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed());
+        if (clipboardPanelOpen) {
+            renderer.drawClipboardPopup(canvas, com.unbounded.input.SimpleImeService.getClipboardHistory());
+        }
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (clipboardPanelOpen) {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                java.util.List<String> history = com.unbounded.input.SimpleImeService.getClipboardHistory();
+                int count = history.size();
+                int visibleIdx = renderer.hitTestClipboardItem(getHeight(), count, event.getY());
+                if (visibleIdx >= 0) {
+                    int realIndex = count - 1 - visibleIdx;
+                    android.inputmethodservice.InputMethodService svc = (android.inputmethodservice.InputMethodService) getContext();
+                    if (svc instanceof com.unbounded.input.SimpleImeService) {
+                        ((com.unbounded.input.SimpleImeService) svc).pasteClipboardItem(realIndex);
+                    }
+                }
+                closeClipboardPanel();
+            }
+            return true;
+        }
         return gestureController.onTouchEvent(event);
     }
 }

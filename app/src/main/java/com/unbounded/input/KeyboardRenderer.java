@@ -1,3 +1,4 @@
+// Canvas渲染器：逐行绘制按键、剪贴板弹出面板
 package com.unbounded.input;
 
 import android.graphics.Canvas;
@@ -120,5 +121,57 @@ public class KeyboardRenderer {
             float textX = ix + itemWidth / 2 - textPaint.measureText(items[i]) / 2;
             canvas.drawText(items[i], textX, textY, textPaint);
         }
+    }
+    private static final int MAX_VISIBLE_CLIPBOARD_ITEMS = 6;
+
+    public void drawClipboardPopup(Canvas canvas, java.util.List<String> history) {
+        int w = canvas.getWidth();
+        int h = canvas.getHeight();
+
+        Paint overlay = new Paint();
+        overlay.setColor(0xCC000000);
+        canvas.drawRect(0, 0, w, h, overlay);
+
+        if (history == null || history.isEmpty()) {
+            Paint emptyPaint = ThemeTokens.newTextPaint();
+            emptyPaint.setTextSize(20f);
+            emptyPaint.setColor(ThemeTokens.TEXT_PRIMARY);
+            canvas.drawText("剪贴板为空", w / 2f - 60, h / 2f, emptyPaint);
+            return;
+        }
+
+        int visibleCount = Math.min(history.size(), MAX_VISIBLE_CLIPBOARD_ITEMS);
+        float itemHeight = h / (float) visibleCount;
+        Paint bgPaint = ThemeTokens.newBgPaint();
+        Paint textPaint = ThemeTokens.newTextPaint();
+        textPaint.setTextSize(18f);
+        Paint borderPaint = ThemeTokens.newBorderPaint();
+        borderPaint.setColor(ThemeTokens.BORDER);
+
+        for (int i = 0; i < visibleCount; i++) {
+            String raw = history.get(history.size() - 1 - i);
+            float top = i * itemHeight;
+            float bottom = top + itemHeight;
+
+            bgPaint.setColor(ThemeTokens.SURFACE_RAISED);
+            canvas.drawRect(0, top, w, bottom, bgPaint);
+            canvas.drawLine(0, bottom, w, bottom, borderPaint);
+
+            String display = raw.replace("\n", " ");
+            if (display.length() > 40) display = display.substring(0, 40) + "...";
+            textPaint.setColor(ThemeTokens.TEXT_PRIMARY);
+            Paint.FontMetrics fm = textPaint.getFontMetrics();
+            float textY = top + itemHeight / 2 - (fm.ascent + fm.descent) / 2;
+            canvas.drawText(display, 16, textY, textPaint);
+        }
+    }
+
+    public int hitTestClipboardItem(int viewHeight, int totalCount, float y) {
+        if (totalCount == 0) return -1;
+        int visibleCount = Math.min(totalCount, MAX_VISIBLE_CLIPBOARD_ITEMS);
+        float itemHeight = viewHeight / (float) visibleCount;
+        int idx = (int) (y / itemHeight);
+        if (idx < 0 || idx >= visibleCount) return -1;
+        return idx;
     }
 }

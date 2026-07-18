@@ -1,3 +1,4 @@
+// 手势和长按控制器：五向手势识别、长按连续触发、剪贴板键处理
 package com.unbounded.input;
 
 import android.content.Context;
@@ -29,10 +30,13 @@ public class KeyboardGestureController {
         android.content.Context getKeyboardContext();
     }
 
+    private final ContinuousDeleteHelper continuousHelper;
+
     public KeyboardGestureController(List<KeyModel> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
         this.keys = keys;
         this.dispatcher = dispatcher;
         this.session = session;
+        this.continuousHelper = new ContinuousDeleteHelper(dispatcher);
         Context ctx = session.getKeyboardContext();
         this.touchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
         this.longPressRunnable = new LongPressTask(this);
@@ -42,11 +46,16 @@ public class KeyboardGestureController {
         private final KeyboardGestureController ctrl;
         LongPressTask(KeyboardGestureController ctrl) { this.ctrl = ctrl; }
         public void run() {
-            if (ctrl.activeKey != null && !ctrl.isGestureConsumed && ctrl.activeKey.longPress != null) {
-                ctrl.isLongPressed = true;
-                ctrl.isGestureConsumed = true;
+            if (ctrl.activeKey == null || ctrl.isGestureConsumed) return;
+            ctrl.isLongPressed = true;
+            ctrl.isGestureConsumed = true;
+            ctrl.session.invalidateView();
+
+            Command repeatCmd = ctrl.getRepeatableCommand(ctrl.activeKey);
+            if (repeatCmd != null) {
+                ctrl.continuousHelper.start(repeatCmd);
+            } else if (ctrl.activeKey.longPress != null) {
                 ctrl.dispatcher.onCommand(ctrl.activeKey.longPress);
-                ctrl.session.invalidateView();
             }
         }
     }
@@ -54,12 +63,25 @@ public class KeyboardGestureController {
     public KeyModel getActiveKey() { return activeKey; }
     public boolean isLongPressed() { return isLongPressed; }
 
+    private Command getRepeatableCommand(KeyModel key) {
+        if (key.tap == null) return null;
+        if (key.tap.type == Command.Type.BACKSPACE) return key.tap;
+        if (key.tap.type == Command.Type.KEY_EVENT) {
+            if (key.id.equals("up") || key.id.equals("down")
+                    || key.id.equals("left") || key.id.equals("right")) {
+                return key.tap;
+            }
+        }
+        return null;
+    }
+
     public void reset() {
         if (activeKey != null) activeKey.pressed = false;
         activeKey = null;
         isGestureConsumed = false;
         isLongPressed = false;
         longPressHandler.removeCallbacks(longPressRunnable);
+        continuousHelper.stop();
     }
 
     private KeyModel findKey(float x, float y) {
@@ -102,6 +124,7 @@ public class KeyboardGestureController {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 longPressHandler.removeCallbacks(longPressRunnable);
+                continuousHelper.stop();
                 if (isLongPressed) {
                     isLongPressed = false;
                     if (activeKey != null) activeKey.pressed = false;
@@ -123,6 +146,17 @@ public class KeyboardGestureController {
 
     private void execGesture(GestureRecognizer.Gesture g) {
         if (activeKey == null || dispatcher == null) return;
+        // 剪贴板键：依次粘贴历史记录
+        if (g == GestureRecognizer.Gesture.TAP && "📋".equals(activeKey.label)) {
+            java.util.List<String> history = com.unbounded.input.SimpleImeService.getClipboardHistory();
+            if (!history.isEmpty()) {
+                // 取第一条，粘贴后移到末尾（循环使用）
+                String item = history.remove(0);
+                history.add(item);
+                dispatcher.onCommand(Command.insert(item + "\n"));
+            }
+            return;
+        }
         Command cmd = null;
         switch (g) {
             case TAP: cmd = activeKey.tap; break;

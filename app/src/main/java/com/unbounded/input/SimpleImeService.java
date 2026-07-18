@@ -1,3 +1,4 @@
+// IME服务入口：生命周期管理、键盘构建、剪贴板、日志
 package com.unbounded.input;
 
 import android.content.Context;
@@ -12,6 +13,8 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
@@ -26,6 +29,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class SimpleImeService extends InputMethodService {
@@ -34,6 +38,44 @@ public class SimpleImeService extends InputMethodService {
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
     private FrameLayout inputRoot;
+    private static final java.util.List<String> clipboardHistory = new ArrayList<>();
+    private static final int MAX_CLIPBOARD_HISTORY = 20;
+    private ClipboardManager clipboardManager;
+
+    public static java.util.List<String> getClipboardHistory() { return clipboardHistory; }
+
+    private void pasteRecentClipboard() {
+        if (clipboardHistory.isEmpty()) return;
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) ic.commitText(clipboardHistory.get(clipboardHistory.size() - 1), 1);
+    }
+
+    public void pasteClipboardItem(int index) {
+        if (index < 0 || index >= clipboardHistory.size()) return;
+        InputConnection ic = getCurrentInputConnection();
+        if (ic != null) ic.commitText(clipboardHistory.get(index), 1);
+    }
+
+    private void initClipboard() {
+        clipboardManager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboardManager != null) {
+            clipboardManager.addPrimaryClipChangedListener(new ClipboardManager.OnPrimaryClipChangedListener() {
+                @Override
+                public void onPrimaryClipChanged() {
+                    ClipData clip = clipboardManager.getPrimaryClip();
+                    if (clip != null && clip.getItemCount() > 0) {
+                        String text = clip.getItemAt(0).getText().toString();
+                        if (text != null && !text.isEmpty() && !text.equals(clipboardHistory.isEmpty() ? "" : clipboardHistory.get(clipboardHistory.size() - 1))) {
+                            clipboardHistory.add(text);
+                            if (clipboardHistory.size() > MAX_CLIPBOARD_HISTORY) {
+                                clipboardHistory.remove(0);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
 
     private int getKeyboardHeight() {
         if (prefs == null) prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
@@ -69,6 +111,7 @@ public class SimpleImeService extends InputMethodService {
         super.onCreate();
         prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
         applyThemeFromPrefs();
+        initClipboard();
         log(this, "灵体终端键盘启动");
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
@@ -96,6 +139,7 @@ public class SimpleImeService extends InputMethodService {
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
         applyThemeFromPrefs();
+        initClipboard();
         if (keyboardView == null) rebuildKeyboard();
         if (keyboardView != null) keyboardView.resetSession();
         focusHandler.postDelayed(new Runnable() {

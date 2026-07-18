@@ -1,3 +1,4 @@
+// 设置页：布局/行为/主题/高度配置界面
 package com.unbounded.input;
 
 import android.app.Activity;

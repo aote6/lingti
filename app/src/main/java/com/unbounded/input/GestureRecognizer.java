@@ -1,3 +1,4 @@
+// 手势识别：根据触控坐标判断TAP/SWIPE方向
 package com.unbounded.input;
 
 public class GestureRecognizer {

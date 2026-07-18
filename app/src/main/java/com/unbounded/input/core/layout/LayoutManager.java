@@ -1,3 +1,4 @@
+// 布局管理器：持有LayoutProfile，计算按键rect坐标
 package com.unbounded.input.core.layout;
 
 public class LayoutManager {

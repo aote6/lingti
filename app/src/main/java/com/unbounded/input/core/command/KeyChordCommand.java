@@ -1,3 +1,4 @@
+// 组合键命令：同时按下多个键（Ctrl+C等）
 package com.unbounded.input.core.command;
 
 import com.unbounded.input.Command;

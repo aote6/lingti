@@ -1,3 +1,4 @@
+// 行描述：存放一行内的KeyModel列表，计算totalSpan
 package com.unbounded.input.core.layout;
 
 import java.util.ArrayList;

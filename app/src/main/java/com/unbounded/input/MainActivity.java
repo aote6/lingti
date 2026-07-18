@@ -1,3 +1,4 @@
+// 启动页：跳转系统输入法设置和灵体设置
 package com.unbounded.input;
 
 import android.app.Activity;

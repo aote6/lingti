@@ -1,3 +1,4 @@
+// 命令执行引擎：将Command派发到InputConnection，唯一执行点
 package com.unbounded.input;
 
 import android.util.Log;

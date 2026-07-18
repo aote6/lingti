@@ -1,3 +1,4 @@
+// JSON布局加载器：从assets解析布局配置，转成LayoutProfile
 package com.unbounded.input;
 
 import android.content.Context;

@@ -1,3 +1,4 @@
+// 插入文本命令：commitText到InputConnection
 package com.unbounded.input;
 
 public class InsertText extends Command {

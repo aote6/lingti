@@ -1,3 +1,4 @@
+// 布局配置：多行RowSpec组成，提供allKeys()扁平查询
 package com.unbounded.input.core.layout;
 
 import java.util.ArrayList;
