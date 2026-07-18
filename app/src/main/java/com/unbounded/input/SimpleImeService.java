@@ -1,6 +1,8 @@
 package com.unbounded.input;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.inputmethodservice.InputMethodService;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,6 +28,7 @@ public class SimpleImeService extends InputMethodService {
     private NineKeyKeyboard keyboardView;
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
     private String currentContext = "chinese";
+    private SharedPreferences prefs;
 
     private static String detectContext(EditorInfo info) {
         if (info == null) return "chinese";
@@ -49,6 +52,12 @@ public class SimpleImeService extends InputMethodService {
         }
     }
 
+    private int getKeyboardHeight() {
+        if (prefs == null) prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
+        int dp = prefs.getInt("keyboard_height", 280);
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
+    }
+
     public static void log(Context ctx, String msg) {
         try {
             if (logFile == null) {
@@ -67,6 +76,7 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onCreate() {
         super.onCreate();
+        prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -93,6 +103,12 @@ public class SimpleImeService extends InputMethodService {
         super.onStartInputView(info, restarting);
 
         String detected = detectContext(info);
+        // 如果用户没设置默认模式，用场景检测；否则非终端/编辑器场景用用户默认
+        String defaultMode = prefs.getString("default_mode", "");
+        if (!"terminal".equals(detected) && !"english".equals(detected) && !defaultMode.isEmpty()) {
+            detected = defaultMode;
+        }
+
         if (!detected.equals(currentContext) || keyboardView == null) {
             currentContext = detected;
             log(this, "场景切换: " + info.packageName + " -> " + currentContext);
@@ -119,7 +135,7 @@ public class SimpleImeService extends InputMethodService {
             FrameLayout container = (FrameLayout) root;
             container.removeAllViews();
 
-            int h = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 280, getResources().getDisplayMetrics());
+            int h = getKeyboardHeight();
 
             KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
                 @Override
@@ -188,7 +204,7 @@ public class SimpleImeService extends InputMethodService {
             @Override
             public boolean onTouchEvent(MotionEvent event) { return true; }
         };
-        int h = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 280, getResources().getDisplayMetrics());
+        int h = getKeyboardHeight();
         container.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
 
         KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
@@ -220,5 +236,12 @@ public class SimpleImeService extends InputMethodService {
     public void onDestroy() {
         focusHandler.removeCallbacksAndMessages(null);
         super.onDestroy();
+    }
+
+    // 供 MainActivity 调用：打开设置界面
+    public static void openSettings(Context ctx) {
+        Intent intent = new Intent(ctx, SettingsActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        ctx.startActivity(intent);
     }
 }
