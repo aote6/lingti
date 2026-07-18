@@ -28,23 +28,15 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private int candidatePage = 0;
     private float candidateBarHeight;
     private int cols = 3;
+    private float dpScale = 1f;
 
     public enum InputMode { CHINESE, ENGLISH, TERMINAL }
     private InputMode inputMode = InputMode.CHINESE;
     private final MultiTapEngine multiTapEngine = new MultiTapEngine();
 
-    public NineKeyKeyboard(Context context, final KeyboardActionDispatcher dispatcher, final List<KeyModel> keyModels) {
+    public NineKeyKeyboard(Context context, final KeyboardActionDispatcher dispatcher, final LayoutProfile profile) {
         super(context);
-        final LayoutProfile profile = new LayoutProfile("inline");
-        int rows = (int) Math.ceil((float) keyModels.size() / 3);
-        for (int r = 0; r < rows; r++) {
-            com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
-            for (int c = 0; c < 3; c++) {
-                int idx = r * 3 + c;
-                if (idx < keyModels.size()) row.add(keyModels.get(idx));
-            }
-            profile.addRow(row);
-        }
+        dpScale = getResources().getDisplayMetrics().density;
         List<KeyModel> allKeys = profile.allKeys();
         layoutManager.setLayout(new KeyboardLayout() {
             public String id() { return "inline"; }
@@ -60,6 +52,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     }
 
     public int getCols() { return cols; }
+    public float getDpScale() { return dpScale; }
 
     public void setInputMode(InputMode mode) {
         if (this.inputMode != mode) {

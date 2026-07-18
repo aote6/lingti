@@ -37,6 +37,8 @@ public class InputEngine {
                 break;
             case ESC:
             case NOOP:
+            case SHIFT_TOGGLE:
+            case SYMBOL_TOGGLE:
                 break;
             case KEY_EVENT:
                 if (cmd instanceof KeyEventCommand) {

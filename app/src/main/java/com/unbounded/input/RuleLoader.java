@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.unbounded.input.core.layout.KeyModel;
+import com.unbounded.input.core.command.KeyEventCommand;
+import com.unbounded.input.core.command.KeyChordCommand;
 
 public class RuleLoader {
 
@@ -76,6 +78,21 @@ public class RuleLoader {
             case "insert": return Command.insert(text);
             case "backspace": return Command.backspace();
             case "commit": return Command.commit();
+            case "key_event": {
+                int keyCode = obj.optInt("keyCode", 0);
+                int metaState = obj.optInt("metaState", 0);
+                if (metaState != 0) return KeyEventCommand.withMeta(keyCode, metaState);
+                return KeyEventCommand.of(keyCode);
+            }
+            case "key_chord": {
+                JSONArray arr = obj.optJSONArray("keyCodes");
+                if (arr == null) return null;
+                int[] codes = new int[arr.length()];
+                for (int i = 0; i < arr.length(); i++) codes[i] = arr.optInt(i);
+                int metaState = obj.optInt("metaState", 0);
+                if (metaState != 0) return new KeyChordCommand(codes, metaState);
+                return KeyChordCommand.of(codes);
+            }
             default: return null;
         }
     }

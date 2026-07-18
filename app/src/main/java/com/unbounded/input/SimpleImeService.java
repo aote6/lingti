@@ -17,6 +17,7 @@ import android.widget.FrameLayout;
 
 import com.unbounded.input.core.layout.KeyModel;
 import com.unbounded.input.core.layout.KeyboardLayout;
+import com.unbounded.input.core.layout.LayoutProfile;
 import com.unbounded.input.layouts.qwerty.Qwerty26Layout;
 import com.unbounded.input.layouts.terminal.UnexpectedTerminalLayout;
 
@@ -36,6 +37,7 @@ public class SimpleImeService extends InputMethodService {
     private String currentLayout = "ninekey";
     private String currentBehavior = "t9";
     private SharedPreferences prefs;
+    private Qwerty26Layout qwertyLayout;
 
     private static String detectContext(EditorInfo info) {
         if (info == null) return "chinese";
@@ -58,7 +60,9 @@ public class SimpleImeService extends InputMethodService {
 
     private KeyboardLayout resolveLayout(String layoutId) {
         switch (layoutId) {
-            case "qwerty26": return new Qwerty26Layout();
+            case "qwerty26":
+                if (qwertyLayout == null) qwertyLayout = new Qwerty26Layout();
+                return qwertyLayout;
             case "unexpected_terminal": return new UnexpectedTerminalLayout();
             default: return null;
         }
@@ -72,6 +76,13 @@ public class SimpleImeService extends InputMethodService {
             return NineKeyKeyboard.InputMode.ENGLISH;
         }
         return NineKeyKeyboard.InputMode.CHINESE;
+    }
+
+    private void applyThemeFromPrefs() {
+        if (prefs == null) prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
+        String name = prefs.getString("theme", "Default");
+        ThemeTokens.getManager().setByName(name);
+        ThemeTokens.refresh();
     }
 
     public static void log(Context ctx, String msg) {
@@ -93,6 +104,8 @@ public class SimpleImeService extends InputMethodService {
     public void onCreate() {
         super.onCreate();
         prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
+        applyThemeFromPrefs();
+        T9Engine.init(this);
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -117,6 +130,8 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+
+        applyThemeFromPrefs();
 
         String context = detectContext(info);
         String layout = prefs.getString("default_layout", "ninekey");
@@ -159,6 +174,16 @@ public class SimpleImeService extends InputMethodService {
             KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
                 @Override
                 public void onCommand(Command cmd) {
+                    if (cmd.type == Command.Type.SHIFT_TOGGLE) {
+                        if (qwertyLayout != null) qwertyLayout.toggleShift();
+                        rebuildKeyboard();
+                        return;
+                    }
+                    if (cmd.type == Command.Type.SYMBOL_TOGGLE) {
+                        if (qwertyLayout != null) qwertyLayout.toggleSymbol();
+                        rebuildKeyboard();
+                        return;
+                    }
                     InputConnection ic = getCurrentInputConnection();
                     if (ic != null) InputEngine.execute(ic, cmd);
                 }
@@ -168,13 +193,24 @@ public class SimpleImeService extends InputMethodService {
             NineKeyKeyboard.InputMode mode = resolveInputMode(currentLayout, currentBehavior);
 
             if (layout != null) {
-                List<KeyModel> keys = layout.build().allKeys();
-                keyboardView = new NineKeyKeyboard(this, dispatcher, keys);
+                LayoutProfile profile = layout.build();
+                keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
             } else {
                 String configFile = "default.json";
                 if ("direct".equals(currentBehavior)) configFile = "default_english.json";
                 RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
-                keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
+                List<KeyModel> keys = layoutConfig.toKeyModels();
+                LayoutProfile profile = new LayoutProfile("inline");
+                int rows = (int) Math.ceil((float) keys.size() / 3);
+                for (int r = 0; r < rows; r++) {
+                    com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
+                    for (int c = 0; c < 3; c++) {
+                        int idx = r * 3 + c;
+                        if (idx < keys.size()) row.add(keys.get(idx));
+                    }
+                    profile.addRow(row);
+                }
+                keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
             }
             keyboardView.setInputMode(mode);
             keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
@@ -227,7 +263,18 @@ public class SimpleImeService extends InputMethodService {
         };
 
         RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, "default.json");
-        keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.toKeyModels());
+        List<KeyModel> keys = layoutConfig.toKeyModels();
+        LayoutProfile profile = new LayoutProfile("inline");
+        int rows = (int) Math.ceil((float) keys.size() / 3);
+        for (int r = 0; r < rows; r++) {
+            com.unbounded.input.core.layout.RowSpec row = new com.unbounded.input.core.layout.RowSpec();
+            for (int c = 0; c < 3; c++) {
+                int idx = r * 3 + c;
+                if (idx < keys.size()) row.add(keys.get(idx));
+            }
+            profile.addRow(row);
+        }
+        keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
         keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
         keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
         container.addView(keyboardView);
@@ -237,6 +284,7 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onDestroy() {
         focusHandler.removeCallbacksAndMessages(null);
+        T9Engine.save();
         super.onDestroy();
     }
 

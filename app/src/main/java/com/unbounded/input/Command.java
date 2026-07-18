@@ -4,7 +4,8 @@ public abstract class Command {
     public enum Type {
         INSERT_TEXT, BACKSPACE, COMMIT,
         KEY_EVENT, KEY_CHORD,
-        SPACE, ENTER, DEL, TAB, ESC, NOOP
+        SPACE, ENTER, DEL, TAB, ESC, NOOP,
+        SHIFT_TOGGLE, SYMBOL_TOGGLE
     }
 
     public final Type type;
@@ -23,4 +24,6 @@ public abstract class Command {
     public static Command del() { return new Backspace(); }
     public static Command tab() { return new InsertText("\t"); }
     public static Command noop() { return new InsertText(""); }
+    public static Command shiftToggle() { return new ShiftToggle(); }
+    public static Command symbolToggle() { return new SymbolToggle(); }
 }

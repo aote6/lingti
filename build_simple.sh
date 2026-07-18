@@ -3,7 +3,7 @@ set -e
 
 PROJECT_DIR=~/storage/shared/lingti
 BUILD_DIR=$PROJECT_DIR/build/simple
-SRC_DIR=$PROJECT_DIR/app/src/main/java/com/unbounded/input
+SRC_DIR=$PROJECT_DIR/app/src/main/java
 RES_DIR=$PROJECT_DIR/app/src/main/res
 MANIFEST=$PROJECT_DIR/app/src/main/AndroidManifest.xml
 ANDROID_JAR=$HOME/android-sdk/platforms/android-34/android.jar
@@ -14,42 +14,7 @@ mkdir -p $BUILD_DIR/classes
 mkdir -p $BUILD_DIR/apk
 
 echo "=== 编译 Java 源文件 ==="
-ecj -d $BUILD_DIR/classes \
-    -cp $ANDROID_JAR \
-    $SRC_DIR/Command.java \
-    $SRC_DIR/InsertText.java \
-    $SRC_DIR/Backspace.java \
-    $SRC_DIR/Commit.java \
-    $SRC_DIR/InputEngine.java \
-    $SRC_DIR/GestureRecognizer.java \
-    $SRC_DIR/RuleLoader.java \
-    $SRC_DIR/T9Engine.java \
-    $SRC_DIR/MultiTapEngine.java \
-    $SRC_DIR/ThemeTokens.java \
-    $SRC_DIR/KeyboardActionDispatcher.java \
-    $SRC_DIR/ContinuousDeleteHelper.java \
-    $SRC_DIR/KeyboardRenderer.java \
-    $SRC_DIR/KeyboardGestureController.java \
-    $SRC_DIR/NineKeyKeyboard.java \
-    $SRC_DIR/SimpleImeService.java \
-    $SRC_DIR/SettingsActivity.java \
-    $SRC_DIR/MainActivity.java \
-    $SRC_DIR/core/command/KeyEventCommand.java \
-    $SRC_DIR/core/command/KeyChordCommand.java \
-    $SRC_DIR/core/layout/KeyModel.java \
-    $SRC_DIR/core/layout/RowSpec.java \
-    $SRC_DIR/core/layout/LayoutProfile.java \
-    $SRC_DIR/core/layout/KeyboardLayout.java \
-    $SRC_DIR/core/layout/LayoutManager.java \
-    $SRC_DIR/core/candidate/CandidateProvider.java \
-    $SRC_DIR/core/candidate/T9Provider.java \
-    $SRC_DIR/core/candidate/CandidateEngine.java \
-    $SRC_DIR/core/candidate/FrequencyCache.java \
-    $SRC_DIR/core/theme/ThemeProfile.java \
-    $SRC_DIR/core/theme/ThemeManager.java \
-    $SRC_DIR/layouts/nine/NineKeyLayout.java \
-    $SRC_DIR/layouts/qwerty/Qwerty26Layout.java \
-    $SRC_DIR/layouts/terminal/UnexpectedTerminalLayout.java
+find "$SRC_DIR" -name "*.java" | sort | xargs ecj -d "$BUILD_DIR/classes" -cp "$ANDROID_JAR"
 
 echo "=== 处理资源 ==="
 aapt package -f -M $MANIFEST -S $RES_DIR -I $ANDROID_JAR -F $BUILD_DIR/resources.apk

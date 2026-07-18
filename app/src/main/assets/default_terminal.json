@@ -1,19 +1,19 @@
 {
-  "version": 2,
+  "version": 3,
   "layout": "terminal",
   "context": "terminal",
   "keys": [
-    {"tap": {"type": "insert", "text": "Esc"}, "swipeUp": {"type": "insert", "text": "F1"}, "swipeLeft": {"type": "insert", "text": "F2"}, "swipeDown": {"type": "insert", "text": "F3"}, "swipeRight": {"type": "insert", "text": "F4"}, "longPress": {"type": "insert", "text": "Esc"}},
-    {"tap": {"type": "insert", "text": "Tab"}, "swipeUp": {"type": "insert", "text": "~"}, "swipeLeft": {"type": "insert", "text": "{"}, "swipeDown": {"type": "insert", "text": "}"}, "swipeRight": {"type": "insert", "text": "["}, "longPress": {"type": "insert", "text": "Tab"}},
-    {"tap": {"type": "insert", "text": "/"}, "swipeUp": {"type": "insert", "text": "\\"}, "swipeLeft": {"type": "insert", "text": "$"}, "swipeDown": {"type": "insert", "text": "|"}, "swipeRight": {"type": "insert", "text": "*"}, "longPress": {"type": "insert", "text": "/"}},
-    {"tap": {"type": "insert", "text": "-"}, "swipeUp": {"type": "insert", "text": "_"}, "swipeLeft": {"type": "insert", "text": "="}, "swipeDown": {"type": "insert", "text": "+"}, "swipeRight": {"type": "insert", "text": "<"}, "longPress": {"type": "insert", "text": "-"}},
-    {"tap": {"type": "insert", "text": ":"}, "swipeUp": {"type": "insert", "text": ";"}, "swipeLeft": {"type": "insert", "text": "\""}, "swipeDown": {"type": "insert", "text": "'"}, "swipeRight": {"type": "insert", "text": ">"}, "longPress": {"type": "insert", "text": ":"}},
-    {"tap": {"type": "insert", "text": "!"}, "swipeUp": {"type": "insert", "text": "@"}, "swipeLeft": {"type": "insert", "text": "#"}, "swipeDown": {"type": "insert", "text": "%"}, "swipeRight": {"type": "insert", "text": "^"}, "longPress": {"type": "insert", "text": "!"}},
-    {"tap": {"type": "insert", "text": "("}, "swipeUp": {"type": "insert", "text": ")"}, "swipeLeft": {"type": "insert", "text": "["}, "swipeDown": {"type": "insert", "text": "]"}, "swipeRight": {"type": "insert", "text": "&"}, "longPress": {"type": "insert", "text": "("}},
-    {"tap": {"type": "insert", "text": "Up"}, "swipeUp": {"type": "insert", "text": "Up"}, "swipeLeft": {"type": "insert", "text": "Left"}, "swipeDown": {"type": "insert", "text": "Down"}, "swipeRight": {"type": "insert", "text": "Right"}, "longPress": {"type": "insert", "text": "Up"}},
-    {"tap": {"type": "insert", "text": "Home"}, "swipeUp": {"type": "insert", "text": "PgUp"}, "swipeLeft": {"type": "insert", "text": "End"}, "swipeDown": {"type": "insert", "text": "PgDn"}, "swipeRight": {"type": "insert", "text": "Enter"}, "longPress": {"type": "insert", "text": "Home"}},
-    {"tap": {"type": "insert", "text": "Ctrl"}, "swipeUp": {"type": "insert", "text": "Ctrl"}, "swipeLeft": {"type": "insert", "text": "Alt"}, "swipeDown": {"type": "insert", "text": "Del"}, "swipeRight": {"type": "insert", "text": "Insert"}, "longPress": {"type": "insert", "text": "Ctrl"}},
-    {"tap": {"type": "insert", "text": " "}, "swipeUp": {"type": "insert", "text": "0"}, "swipeLeft": {"type": "insert", "text": " "}, "swipeDown": {"type": "insert", "text": "."}, "swipeRight": {"type": "insert", "text": ","}, "longPress": {"type": "insert", "text": " "}},
-    {"tap": {"type": "backspace"}, "swipeUp": {"type": "insert", "text": "Enter"}, "swipeLeft": {"type": "backspace"}, "swipeDown": {"type": "backspace"}, "swipeRight": {"type": "insert", "text": "Del"}, "longPress": {"type": "backspace"}}
+    {"tap": {"type": "key_event", "keyCode": 111}},
+    {"tap": {"type": "key_event", "keyCode": 61}},
+    {"tap": {"type": "insert", "text": "/"}},
+    {"tap": {"type": "insert", "text": "-"}},
+    {"tap": {"type": "insert", "text": ":"}},
+    {"tap": {"type": "insert", "text": "!"}},
+    {"tap": {"type": "insert", "text": "("}},
+    {"tap": {"type": "key_event", "keyCode": 19}},
+    {"tap": {"type": "key_event", "keyCode": 3}},
+    {"tap": {"type": "key_event", "keyCode": 113}},
+    {"tap": {"type": "insert", "text": " "}},
+    {"tap": {"type": "backspace"}}
   ]
 }

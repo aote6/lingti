@@ -37,6 +37,7 @@ public class KeyboardGestureController {
         NineKeyKeyboard.InputMode getInputMode();
         MultiTapEngine getMultiTapEngine();
         void toggleInputMode();
+        float getDpScale();
     }
 
     public KeyboardGestureController(List<KeyModel> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
@@ -113,6 +114,11 @@ public class KeyboardGestureController {
     public boolean onTouchEvent(MotionEvent event) {
         float x = event.getX(), y = event.getY();
         float barHeight = session.candidateBarHeight();
+        float dp = session.getDpScale();
+        float swipeDeadZone = 8 * dp;
+        float popupItemWidth = 50 * dp;
+        float pageScrollThreshold = 12 * dp;
+
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startX = x; startY = y; isLongPressed = false; isGestureConsumed = false;
@@ -161,7 +167,7 @@ public class KeyboardGestureController {
                 if (activeKey == null) {
                     if (startY < barHeight && y < barHeight && session.getTotalCandidatePages() > 1) {
                         float dy = y - startY;
-                        if (Math.abs(dy) > 40f) {
+                        if (Math.abs(dy) > pageScrollThreshold) {
                             if (dy > 0) session.nextPage(); else session.prevPage();
                             startY = y;
                             session.invalidateView();
@@ -170,13 +176,13 @@ public class KeyboardGestureController {
                     return true;
                 }
                 if (isLongPressed && currentPopupItems != null) {
-                    int idx = (int) ((x - startX) / 50);
+                    int idx = (int) ((x - startX) / popupItemWidth);
                     if (idx < 0) idx = 0;
                     if (idx >= currentPopupItems.length) idx = currentPopupItems.length - 1;
                     if (idx != longPressSelectedIndex) { longPressSelectedIndex = idx; session.invalidateView(); }
                     return true;
                 }
-                if (!isGestureConsumed && (Math.abs(x - startX) > 25 || Math.abs(y - startY) > 25))
+                if (!isGestureConsumed && (Math.abs(x - startX) > swipeDeadZone || Math.abs(y - startY) > swipeDeadZone))
                     longPressHandler.removeCallbacks(longPressRunnable);
                 if (!isGestureConsumed) {
                     GestureRecognizer.Gesture g = recognizer.onMove(x, y);
