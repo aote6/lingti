@@ -19,6 +19,7 @@ public class KeyboardGestureController {
     private String[] currentPopupItems;
     private final Runnable longPressRunnable;
     private final Runnable multiTapTimeoutRunnable;
+    private boolean isCandidateBarPress = false;
 
     private final SessionAccess session;
 
@@ -81,6 +82,7 @@ public class KeyboardGestureController {
         isLongPressed = false;
         longPressSelectedIndex = -1;
         currentPopupItems = null;
+        isCandidateBarPress = false;
         longPressHandler.removeCallbacks(longPressRunnable);
         multiTapTimer.removeCallbacks(multiTapTimeoutRunnable);
     }
@@ -96,7 +98,21 @@ public class KeyboardGestureController {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startX = x; startY = y; isLongPressed = false; isGestureConsumed = false;
-                if (y < barHeight && session.composingDigits().length() > 0) {
+                isCandidateBarPress = (y < barHeight && session.composingDigits().length() > 0);
+                if (isCandidateBarPress) {
+                    // 英文模式下长按候选栏确认 MultiTap
+                    if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
+                        session.getMultiTapEngine().commitCurrent();
+                        String committed = session.getMultiTapEngine().getCommitted();
+                        if (!committed.isEmpty()) {
+                            dispatcher.onCommand(new InsertText(committed));
+                            session.getMultiTapEngine().reset();
+                            session.composingDigits().setLength(0);
+                            session.candidates().clear();
+                            session.invalidateView();
+                            return true;
+                        }
+                    }
                     List<android.graphics.Rect> rects = session.candidateRects();
                     List<String> cands = session.candidates();
                     for (int i = 0; i < rects.size(); i++) {
@@ -186,7 +202,6 @@ public class KeyboardGestureController {
         }
         if (cmd == null) return;
 
-        // 终端模式：所有手势直接 commit 文本，不走 T9/MultiTap
         if (session.getInputMode() == NineKeyKeyboard.InputMode.TERMINAL) {
             dispatcher.onCommand(cmd);
             return;

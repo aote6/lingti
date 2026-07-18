@@ -49,7 +49,7 @@ public class KeyboardRenderer {
                               StringBuilder composingDigits, List<String> candidates,
                               List<Rect> candidateRects,
                               int currentPage, int totalPages,
-                              NineKeyKeyboard.InputMode inputMode) {
+                              NineKeyKeyboard.InputMode inputMode, int cols) {
         canvas.drawColor(ThemeTokens.BG);
         borderPaint.setColor(ThemeTokens.BORDER);
         canvas.drawLine(0, candidateBarHeight, canvas.getWidth(), candidateBarHeight, borderPaint);
@@ -78,7 +78,6 @@ public class KeyboardRenderer {
             }
         }
 
-        // 模式标签
         textPaint.setTextSize(candidateBarHeight * 0.35f);
         textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
         textPaint.setTextAlign(Paint.Align.LEFT);
@@ -92,9 +91,10 @@ public class KeyboardRenderer {
 
         if (keys.isEmpty()) return;
         float remainingHeight = canvas.getHeight() - candidateBarHeight;
-        int rows = keys.size() / NineKeyKeyboard.COLS;
+        int rows = (int) Math.ceil((float) keys.size() / cols);
         float kh = remainingHeight / rows;
-        for (KeySlot k : keys) {
+        for (int i = 0; i < keys.size(); i++) {
+            KeySlot k = keys.get(i);
             Rect r = k.rect;
             float l = r.left, t = r.top, r_ = r.right, b = r.bottom;
             boolean pressed = (k == activeKey && !isLongPressed);
@@ -104,7 +104,6 @@ public class KeyboardRenderer {
             canvas.drawRect(l, t, r_, b, borderPaint);
             float cx = (l + r_) / 2f, cy = (t + b) / 2f;
 
-            // 终端模式显示原始标签（Esc/Tab/Ctrl等），其他模式显示 T9 字母
             String displayLabel;
             if (inputMode == NineKeyKeyboard.InputMode.TERMINAL) {
                 displayLabel = cmdLabel(k.tap);
@@ -114,17 +113,19 @@ public class KeyboardRenderer {
 
             if (displayLabel != null) {
                 textPaint.setColor(pressed ? ThemeTokens.TEXT_ACCENT : ThemeTokens.TEXT_PRIMARY);
-                textPaint.setTextSize(kh * (displayLabel.length() > 2 ? 0.22f : 0.3f));
+                float fontSize = kh * (displayLabel.length() > 2 ? 0.22f : 0.3f);
+                // 横屏时键位更小，放大字号补偿
+                if (cols > 3) fontSize *= 1.3f;
+                textPaint.setTextSize(fontSize);
                 textPaint.setTextAlign(Paint.Align.CENTER);
                 canvas.drawText(displayLabel, cx, cy + kh * 0.08f, textPaint);
             }
 
-            // 终端模式下也显示 swipeUp 的快捷键提示
             if (inputMode == NineKeyKeyboard.InputMode.TERMINAL) {
                 String upLabel = cmdLabel(k.swipeUp);
                 if (upLabel != null && !upLabel.equals(displayLabel)) {
                     textPaint.setColor(ThemeTokens.TEXT_SECONDARY);
-                    textPaint.setTextSize(kh * 0.16f);
+                    textPaint.setTextSize(kh * (cols > 3 ? 0.18f : 0.16f));
                     canvas.drawText(upLabel, cx, t + kh * 0.2f, textPaint);
                 }
             } else {

@@ -1,6 +1,7 @@
 package com.unbounded.input;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.view.MotionEvent;
@@ -9,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NineKeyKeyboard extends View implements KeyboardGestureController.SessionAccess {
-    static final int COLS = 3, PAD = 2;
+    static final int PAD = 2;
     static final int CANDIDATE_PAGE_SIZE = 4;
 
     private final List<KeySlot> keys = new ArrayList<>();
@@ -21,6 +22,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private final List<Rect> candidateRects = new ArrayList<>();
     private int candidatePage = 0;
     private float candidateBarHeight;
+    private int cols = 3;
 
     public enum InputMode { CHINESE, ENGLISH, TERMINAL }
     private InputMode inputMode = InputMode.CHINESE;
@@ -35,7 +37,15 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
             keys.add(k);
         }
         gestureController = new KeyboardGestureController(keys, dispatcher, this);
+        detectOrientation();
     }
+
+    private void detectOrientation() {
+        int orientation = getResources().getConfiguration().orientation;
+        cols = (orientation == Configuration.ORIENTATION_LANDSCAPE) ? 6 : 3;
+    }
+
+    public int getCols() { return cols; }
 
     public void setInputMode(InputMode mode) {
         if (this.inputMode != mode) {
@@ -48,7 +58,6 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     @Override public void toggleInputMode() {
         if (inputMode == InputMode.CHINESE) setInputMode(InputMode.ENGLISH);
         else if (inputMode == InputMode.ENGLISH) setInputMode(InputMode.CHINESE);
-        // TERMINAL 不参与循环切换，只能由场景自动设置
     }
 
     @Override public StringBuilder composingDigits() { return composingDigits; }
@@ -86,6 +95,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+        detectOrientation();
         computeKeyRects(w, h);
     }
 
@@ -93,13 +103,13 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         if (keys.isEmpty()) return;
         candidateBarHeight = h * 0.16f;
         float remainingHeight = h - candidateBarHeight;
-        int rows = keys.size() / COLS;
-        float kw = (float) w / COLS;
+        int rows = (int) Math.ceil((float) keys.size() / cols);
+        float kw = (float) w / cols;
         float kh = remainingHeight / rows;
         for (int i = 0; i < keys.size(); i++) {
             KeySlot k = keys.get(i);
-            int row = i / COLS;
-            int col = i % COLS;
+            int row = i / cols;
+            int col = i % cols;
             float l = col * kw + PAD;
             float t = candidateBarHeight + row * kh + PAD;
             float r = (col + 1) * kw - PAD;
@@ -118,7 +128,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         renderer.drawKeyboard(canvas, keys, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed(),
                 composingDigits, pageCandidates, candidateRects,
-                candidatePage, totalPages, inputMode);
+                candidatePage, totalPages, inputMode, cols);
         if (gestureController.isLongPressed() && gestureController.getCurrentPopupItems() != null) {
             renderer.drawHorizontalPopup(canvas, candidateBarHeight,
                     gestureController.getCurrentPopupItems(),
