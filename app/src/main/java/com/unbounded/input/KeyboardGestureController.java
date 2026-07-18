@@ -138,6 +138,11 @@ public class KeyboardGestureController {
                         if (rects.get(i).contains((int) x, (int) y)) {
                             if (i < visible.size()) {
                                 String chosen = visible.get(i);
+                                int len = session.composingDigits().length();
+                                session.composingDigits().setLength(0);
+                                for (int d = 0; d < len; d++) {
+                                    dispatcher.onCommand(new Backspace());
+                                }
                                 dispatcher.onCommand(new InsertText(chosen));
                                 T9Engine.onCandidateSelected(chosen);
                             }
@@ -215,6 +220,7 @@ public class KeyboardGestureController {
     }
 
     private void execGesture(GestureRecognizer.Gesture g) {
+        SimpleImeService.log(null, "execGesture: g=" + g + " label=" + (activeKey != null ? activeKey.label : "null") + " mode=" + session.getInputMode());
         if (activeKey == null || dispatcher == null) return;
         Command cmd = null;
         switch (g) {
@@ -250,11 +256,15 @@ public class KeyboardGestureController {
         }
 
         String rawText = activeKey.label;
-        if (g == GestureRecognizer.Gesture.TAP && rawText != null && rawText.matches("[0-9]")) {
-            session.composingDigits().append(rawText);
+        Command tapCmd = activeKey.tap;
+        if (g == GestureRecognizer.Gesture.TAP && tapCmd != null && tapCmd.type == Command.Type.INSERT_TEXT && tapCmd.text != null && tapCmd.text.matches("[0-9]")) {
+            SimpleImeService.log(null, "T9分支进入: tapText=" + tapCmd.text + " label=" + rawText);
+            session.composingDigits().append(tapCmd.text);
             session.candidates().clear();
             session.resetCandidatePage();
-            session.candidates().addAll(T9Engine.getCandidates(session.composingDigits().toString()));
+            java.util.List<String> cands = T9Engine.getCandidates(session.composingDigits().toString());
+            SimpleImeService.log(null, "候选词数量: " + cands.size() + " digits=" + session.composingDigits().toString());
+            session.candidates().addAll(cands);
             session.invalidateView();
             return;
         }

@@ -10,11 +10,27 @@ import com.unbounded.input.core.command.KeyChordCommand;
 public class InputEngine {
     private static final String TAG = "InputEngine";
 
+    private static void copyLogToDownload() {
+        try {
+            java.io.File src = new java.io.File("/data/data/com.unbounded.input/files/lingti_debug.log");
+            java.io.File dest = new java.io.File("/sdcard/Download/lingti_debug.log");
+            java.io.FileInputStream fis = new java.io.FileInputStream(src);
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(dest);
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = fis.read(buf)) != -1) fos.write(buf, 0, n);
+            fis.close();
+            fos.close();
+        } catch (Exception ignored) {}
+    }
+
     public static void execute(InputConnection ic, Command cmd) {
         if (ic == null || cmd == null) return;
         switch (cmd.type) {
             case INSERT_TEXT:
-                if (cmd.text != null && !cmd.text.isEmpty()) {
+                if ("布局".equals(cmd.text)) {
+                    copyLogToDownload();
+                } else if (cmd.text != null && !cmd.text.isEmpty()) {
                     ic.beginBatchEdit();
                     ic.commitText(cmd.text, 1);
                     ic.endBatchEdit();

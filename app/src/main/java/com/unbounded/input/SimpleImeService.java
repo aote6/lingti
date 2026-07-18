@@ -61,7 +61,9 @@ public class SimpleImeService extends InputMethodService {
 
     private KeyboardLayout resolveLayout(String layoutId) {
         switch (layoutId) {
-            case "qwerty26": return null;
+            case "qwerty26":
+                if (qwertyLayout == null) qwertyLayout = new Qwerty26Layout();
+                return qwertyLayout;
             case "unexpected_terminal": return new UnexpectedTerminalLayout();
             default: return null;
         }
@@ -94,7 +96,7 @@ public class SimpleImeService extends InputMethodService {
                 String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
                 FileOutputStream fos = new FileOutputStream(logFile, true);
                 fos.write((time + " [INFO] " + msg + "\n").getBytes());
-                fos.close();
+
             }
         } catch (Exception ignored) {}
     }
@@ -104,7 +106,9 @@ public class SimpleImeService extends InputMethodService {
         super.onCreate();
         prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
         applyThemeFromPrefs();
+        log(this, "IME onCreate 启动");
         T9Engine.init(this);
+        com.unbounded.input.core.candidate.T9Provider.init(getApplicationContext());
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -131,6 +135,7 @@ public class SimpleImeService extends InputMethodService {
         super.onStartInputView(info, restarting);
 
         applyThemeFromPrefs();
+        log(this, "IME onCreate 启动");
 
         String forceMode = prefs.getString("force_mode", "auto");
         String context;
@@ -157,10 +162,6 @@ public class SimpleImeService extends InputMethodService {
             rebuildKeyboard();
         }
 
-        InputConnection ic = getCurrentInputConnection();
-        if (ic != null) {
-            ic.finishComposingText();
-        }
         if (keyboardView != null) keyboardView.resetSession();
         focusHandler.postDelayed(new Runnable() {
             @Override
@@ -204,8 +205,7 @@ public class SimpleImeService extends InputMethodService {
             keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
         } else {
             String configFile = "default.json";
-            if ("qwerty26".equals(currentLayout)) configFile = "qwerty26.json";
-            else if ("keyevent".equals(currentBehavior)) configFile = "default_ninekey_terminal.json";
+            if ("keyevent".equals(currentBehavior)) configFile = "default_ninekey_terminal.json";
             else if ("direct".equals(currentBehavior)) configFile = "default_english.json";
             RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, configFile);
             List<KeyModel> keys = layoutConfig.toKeyModels();
@@ -230,20 +230,12 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onFinishInput() {
         super.onFinishInput();
-        InputConnection ic = getCurrentInputConnection();
-        if (ic != null) {
-            ic.finishComposingText();
-        }
         if (keyboardView != null) keyboardView.resetSession();
     }
 
     @Override
     public void onFinishInputView(boolean finishingInput) {
         super.onFinishInputView(finishingInput);
-        InputConnection ic = getCurrentInputConnection();
-        if (ic != null) {
-            ic.finishComposingText();
-        }
         if (keyboardView != null) keyboardView.resetSession();
     }
 
@@ -274,16 +266,6 @@ public class SimpleImeService extends InputMethodService {
         KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
             @Override
             public void onCommand(Command cmd) {
-                if (cmd.type == Command.Type.SHIFT_TOGGLE) {
-                    if (qwertyLayout != null) qwertyLayout.toggleShift();
-                    rebuildKeyboard();
-                    return;
-                }
-                if (cmd.type == Command.Type.SYMBOL_TOGGLE) {
-                    if (qwertyLayout != null) qwertyLayout.toggleSymbol();
-                    rebuildKeyboard();
-                    return;
-                }
                 InputConnection ic = getCurrentInputConnection();
                 if (ic != null) InputEngine.execute(ic, cmd);
             }
@@ -311,7 +293,6 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onDestroy() {
         focusHandler.removeCallbacksAndMessages(null);
-        keyboardView = null;
         T9Engine.save();
         super.onDestroy();
     }

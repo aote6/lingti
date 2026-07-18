@@ -1,35 +1,99 @@
 package com.unbounded.input.core.candidate;
 
+import android.content.Context;
+import android.content.res.AssetManager;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class T9Provider implements CandidateProvider {
-    private static final Map<String, String[]> dict = new HashMap<>();
+    private static final Map<String, List<String>> dict = new HashMap<>();
+    private static boolean loaded = false;
 
-    static {
-        dict.put("64426", new String[]{"你好", "您好"});
-        dict.put("9432634", new String[]{"知道了", "知道了啦"});
-        dict.put("4263", new String[]{"好的", "好得", "号灯"});
-        dict.put("646424", new String[]{"明白", "名白", "明摆"});
-        dict.put("9347663", new String[]{"为什么", "为甚么", "为啥呢"});
-        dict.put("526526", new String[]{"看看", "看见", "看啦", "看了"});
-        dict.put("5394", new String[]{"可以", "客气", "可疑", "颗星"});
-        dict.put("967447484", new String[]{"我是谁", "我试试"});
-        dict.put("744", new String[]{"是", "时", "事", "十", "使"});
-        dict.put("96", new String[]{"我", "喔", "窝"});
-        dict.put("2", new String[]{"啊", "不", "才", "吧", "比", "爱", "安"});
-        dict.put("3", new String[]{"的", "到", "大", "但", "地", "对", "多"});
-        dict.put("4", new String[]{"个", "国", "工", "过", "给", "关", "高"});
-        dict.put("5", new String[]{"就", "可", "看", "开", "快", "口", "苦"});
-        dict.put("6", new String[]{"你", "没", "们", "能", "那", "年", "女"});
-        dict.put("7", new String[]{"是", "上", "时", "说", "谁", "水", "书"});
-        dict.put("8", new String[]{"他", "到", "同", "天", "听", "头", "她"});
-        dict.put("9", new String[]{"我", "为", "无", "问", "完", "王", "文"});
-        dict.put("9426464", new String[]{"中国人", "中国心", "中国行", "中国红", "中国风"});
-        dict.put("2323", new String[]{"爸爸", "宝宝", "白白", "伯伯", "贝贝", "北边"});
-        dict.put("5264", new String[]{"开心", "开明", "开年", "开慢", "开满", "看那", "看你"});
+    public static void init(Context context) {
+        if (loaded) return;
+        try {
+            AssetManager am = context.getAssets();
+            android.util.Log.d("T9Provider", "Loading t9_dict.txt from assets");
+            android.util.Log.d("T9Provider", "Loading t9_dict.txt from assets");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(am.open("t9_dict.txt"), "UTF-8"));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split("\t");
+                if (parts.length >= 2) {
+                    String digits = parts[0];
+                    String word = parts[1];
+                    List<String> list = dict.get(digits);
+                    if (list == null) {
+                        list = new ArrayList<>();
+                        dict.put(digits, list);
+                    }
+                    if (!list.contains(word)) {
+                        list.add(word);
+                    }
+                }
+            }
+            reader.close();
+            loaded = true;
+        } catch (Exception e) {
+            android.util.Log.e("T9Provider", "Failed to load t9_dict.txt, using fallback", e);
+            // 文件加载失败用内置备用词库
+            buildFallbackDict();
+            loaded = true;
+        }
+    }
+
+    private static void buildFallbackDict() {
+        addFallback("2", "啊", "不", "才", "吧", "比", "爱", "安");
+        addFallback("3", "的", "到", "大", "但", "地", "对", "多");
+        addFallback("4", "个", "国", "工", "过", "给", "关", "高");
+        addFallback("5", "就", "可", "看", "开", "快", "口", "苦");
+        addFallback("6", "你", "没", "们", "能", "那", "年", "女");
+        addFallback("7", "是", "上", "时", "说", "谁", "水", "书");
+        addFallback("8", "他", "到", "同", "天", "听", "头", "她");
+        addFallback("9", "我", "为", "无", "问", "完", "王", "文");
+        addFallback("23", "爱", "爸");
+        addFallback("24", "不");
+        addFallback("26", "的", "嗯");
+        addFallback("28", "发");
+        addFallback("33", "飞");
+        addFallback("34", "个");
+        addFallback("36", "好");
+        addFallback("43", "就");
+        addFallback("46", "可");
+        addFallback("48", "了");
+        addFallback("53", "妈");
+        addFallback("56", "你");
+        addFallback("63", "去");
+        addFallback("66", "是");
+        addFallback("68", "他");
+        addFallback("74", "我");
+        addFallback("78", "小");
+        addFallback("84", "一");
+        addFallback("86", "这");
+        addFallback("88", "中");
+        addFallback("94", "在");
+        addFallback("2323", "爸爸", "宝宝");
+        addFallback("5264", "开心", "看那");
+        addFallback("64426", "你好");
+        addFallback("9426464", "中国人");
+        addFallback("646424", "明白");
+        addFallback("9347663", "为什么");
+        addFallback("526526", "看看");
+    }
+
+    private static void addFallback(String digits, String... words) {
+        List<String> list = dict.get(digits);
+        if (list == null) {
+            list = new ArrayList<>();
+            dict.put(digits, list);
+        }
+        for (String w : words) {
+            if (!list.contains(w)) list.add(w);
+        }
     }
 
     @Override
@@ -39,12 +103,13 @@ public class T9Provider implements CandidateProvider {
     public List<String> query(String digits) {
         List<String> res = new ArrayList<>();
         if (digits == null || digits.isEmpty()) return res;
-        if (dict.containsKey(digits)) {
-            for (String w : dict.get(digits)) res.add(w);
+        List<String> exact = dict.get(digits);
+        if (exact != null) {
+            for (String w : exact) res.add(w);
         }
-        for (String key : dict.keySet()) {
-            if (key.startsWith(digits) && !key.equals(digits)) {
-                for (String w : dict.get(key)) {
+        for (Map.Entry<String, List<String>> e : dict.entrySet()) {
+            if (e.getKey().startsWith(digits) && !e.getKey().equals(digits)) {
+                for (String w : e.getValue()) {
                     if (!res.contains(w)) res.add(w);
                 }
             }
