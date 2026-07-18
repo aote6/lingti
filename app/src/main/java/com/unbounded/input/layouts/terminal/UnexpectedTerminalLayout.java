@@ -21,23 +21,23 @@ public class UnexpectedTerminalLayout implements KeyboardLayout {
 
         // 第一行: Esc Tab /
         RowSpec row1 = new RowSpec();
-        row1.add(key("esc", "Esc", KeyEvent.KEYCODE_ESCAPE, 2f));
-        row1.add(key("tab", "Tab", KeyEvent.KEYCODE_TAB, 2f));
-        row1.add(key("slash", "/", KeyEvent.KEYCODE_SLASH, 2f));
+        row1.add(keyEvent("esc", "Esc", KeyEvent.KEYCODE_ESCAPE, 2f));
+        row1.add(keyEvent("tab", "Tab", KeyEvent.KEYCODE_TAB, 2f));
+        row1.add(keyText("slash", "/", "/", 2f));
         profile.addRow(row1);
 
         // 第二行: - : !
         RowSpec row2 = new RowSpec();
-        row2.add(key("minus", "-", KeyEvent.KEYCODE_MINUS, 2f));
-        row2.add(key("colon", ":", KeyEvent.KEYCODE_SEMICOLON, 2f));
-        row2.add(key("bang", "!", KeyEvent.KEYCODE_1, 2f));
+        row2.add(keyText("minus", "-", "-", 2f));
+        row2.add(keyText("colon", ":", ":", 2f));
+        row2.add(keyText("bang", "!", "!", 2f));
         profile.addRow(row2);
 
         // 第三行: ( Up Home
         RowSpec row3 = new RowSpec();
-        row3.add(key("lparen", "(", KeyEvent.KEYCODE_LEFT_BRACKET, 2f));
-        row3.add(key("up", "\u2191", KeyEvent.KEYCODE_DPAD_UP, 2f));
-        row3.add(key("home", "Home", KeyEvent.KEYCODE_MOVE_HOME, 2f));
+        row3.add(keyText("lparen", "(", "(", 2f));
+        row3.add(keyEvent("up", "\u2191", KeyEvent.KEYCODE_DPAD_UP, 2f));
+        row3.add(keyEvent("home", "Home", KeyEvent.KEYCODE_MOVE_HOME, 2f));
         profile.addRow(row3);
 
         // 第四行: Ctrl 空格 Backspace
@@ -56,19 +56,25 @@ public class UnexpectedTerminalLayout implements KeyboardLayout {
         row5.add(chord("ctrl_c", "C-c", new int[]{KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_C}, 1.5f));
         row5.add(chord("ctrl_d", "C-d", new int[]{KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_D}, 1.5f));
         row5.add(chord("ctrl_z", "C-z", new int[]{KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_Z}, 1.5f));
-        row5.add(key("left", "\u2190", KeyEvent.KEYCODE_DPAD_LEFT, 1.5f));
-        row5.add(key("down", "\u2193", KeyEvent.KEYCODE_DPAD_DOWN, 1.5f));
-        row5.add(key("right", "\u2192", KeyEvent.KEYCODE_DPAD_RIGHT, 1.5f));
-        row5.add(key("pgup", "PgU", KeyEvent.KEYCODE_PAGE_UP, 1.5f));
-        row5.add(key("pgdn", "PgD", KeyEvent.KEYCODE_PAGE_DOWN, 1.5f));
+        row5.add(keyEvent("left", "\u2190", KeyEvent.KEYCODE_DPAD_LEFT, 1.5f));
+        row5.add(keyEvent("down", "\u2193", KeyEvent.KEYCODE_DPAD_DOWN, 1.5f));
+        row5.add(keyEvent("right", "\u2192", KeyEvent.KEYCODE_DPAD_RIGHT, 1.5f));
+        row5.add(keyEvent("pgup", "PgU", KeyEvent.KEYCODE_PAGE_UP, 1.5f));
+        row5.add(keyEvent("pgdn", "PgD", KeyEvent.KEYCODE_PAGE_DOWN, 1.5f));
         profile.addRow(row5);
 
         return profile;
     }
 
-    private KeyModel key(String id, String label, int keyCode, float span) {
+    private KeyModel keyEvent(String id, String label, int keyCode, float span) {
         KeyModel k = new KeyModel(id, label, span, 1, 1, 1, 1);
         k.tap = KeyEventCommand.of(keyCode);
+        return k;
+    }
+
+    private KeyModel keyText(String id, String label, String text, float span) {
+        KeyModel k = new KeyModel(id, label, span, 1, 1, 1, 1);
+        k.tap = Command.insert(text);
         return k;
     }
 

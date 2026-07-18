@@ -14,7 +14,7 @@ import android.widget.TextView;
 
 public class SettingsActivity extends Activity {
     private SharedPreferences prefs;
-    private TextView layoutText, behaviorText, heightText;
+    private TextView layoutText, behaviorText, themeText, heightText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,7 +26,6 @@ public class SettingsActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(40, 40, 40, 40);
 
-        // 标题
         TextView title = new TextView(this);
         title.setText("灵体 设置 V3");
         title.setTextSize(22);
@@ -34,60 +33,35 @@ public class SettingsActivity extends Activity {
         title.setPadding(0, 0, 0, 30);
         root.addView(title);
 
-        // ===== 布局选择 =====
-        TextView layoutLabel = new TextView(this);
-        layoutLabel.setText("键盘布局");
-        layoutLabel.setTextSize(16);
-        layoutLabel.setTextColor(0xFF55EEAA);
-        layoutLabel.setPadding(0, 10, 0, 10);
-        root.addView(layoutLabel);
+        // 布局
+        addSection(root, "键盘布局");
+        layoutText = addCurrent(root, layoutName(prefs.getString("default_layout", "ninekey")));
+        root.addView(makeRow(
+            makeBtn("九宫格", "ninekey", layoutText, "default_layout", true),
+            makeBtn("26键", "qwerty26", layoutText, "default_layout", true),
+            makeBtn("终端", "unexpected_terminal", layoutText, "default_layout", true)
+        ));
 
-        layoutText = new TextView(this);
-        String currentLayout = prefs.getString("default_layout", "ninekey");
-        layoutText.setText("当前: " + layoutName(currentLayout));
-        layoutText.setTextSize(14);
-        layoutText.setTextColor(0xFF1C9E6A);
-        layoutText.setPadding(0, 0, 0, 15);
-        root.addView(layoutText);
+        // 行为
+        addSection(root, "输入行为");
+        behaviorText = addCurrent(root, behaviorName(prefs.getString("default_behavior", "t9")));
+        root.addView(makeRow(
+            makeBtn("T9中文", "t9", behaviorText, "default_behavior", false),
+            makeBtn("直接输入", "direct", behaviorText, "default_behavior", false),
+            makeBtn("终端键码", "keyevent", behaviorText, "default_behavior", false)
+        ));
 
-        LinearLayout layoutRow = new LinearLayout(this);
-        layoutRow.setOrientation(LinearLayout.HORIZONTAL);
-        layoutRow.addView(makeBtn("九宫格", "ninekey", layoutText, "default_layout"));
-        layoutRow.addView(makeBtn("26键", "qwerty26", layoutText, "default_layout"));
-        layoutRow.addView(makeBtn("终端", "unexpected_terminal", layoutText, "default_layout"));
-        root.addView(layoutRow);
+        // 主题
+        addSection(root, "主题");
+        themeText = addCurrent(root, themeName(prefs.getString("theme", "Default")));
+        root.addView(makeRow(
+            makeThemeBtn("默认", "Default", themeText),
+            makeThemeBtn("琥珀", "Amber", themeText),
+            makeThemeBtn("IBM", "IBM", themeText)
+        ));
 
-        // ===== 行为选择 =====
-        TextView behaviorLabel = new TextView(this);
-        behaviorLabel.setText("输入行为");
-        behaviorLabel.setTextSize(16);
-        behaviorLabel.setTextColor(0xFF55EEAA);
-        behaviorLabel.setPadding(0, 25, 0, 10);
-        root.addView(behaviorLabel);
-
-        behaviorText = new TextView(this);
-        String currentBehavior = prefs.getString("default_behavior", "t9");
-        behaviorText.setText("当前: " + behaviorName(currentBehavior));
-        behaviorText.setTextSize(14);
-        behaviorText.setTextColor(0xFF1C9E6A);
-        behaviorText.setPadding(0, 0, 0, 15);
-        root.addView(behaviorText);
-
-        LinearLayout behaviorRow = new LinearLayout(this);
-        behaviorRow.setOrientation(LinearLayout.HORIZONTAL);
-        behaviorRow.addView(makeBtn("T9中文", "t9", behaviorText, "default_behavior"));
-        behaviorRow.addView(makeBtn("直接输入", "direct", behaviorText, "default_behavior"));
-        behaviorRow.addView(makeBtn("终端键码", "keyevent", behaviorText, "default_behavior"));
-        root.addView(behaviorRow);
-
-        // ===== 键盘高度 =====
-        TextView heightLabel = new TextView(this);
-        heightLabel.setText("键盘高度 (dp)");
-        heightLabel.setTextSize(16);
-        heightLabel.setTextColor(0xFF55EEAA);
-        heightLabel.setPadding(0, 25, 0, 10);
-        root.addView(heightLabel);
-
+        // 高度
+        addSection(root, "键盘高度 (dp)");
         heightText = new TextView(this);
         int currentHeight = prefs.getInt("keyboard_height", 280);
         heightText.setText(currentHeight + " dp");
@@ -95,7 +69,6 @@ public class SettingsActivity extends Activity {
         heightText.setTextColor(0xFF1C9E6A);
         heightText.setPadding(0, 0, 0, 10);
         root.addView(heightText);
-
         SeekBar seekBar = new SeekBar(this);
         seekBar.setMax(200);
         seekBar.setProgress(currentHeight - 200);
@@ -110,7 +83,6 @@ public class SettingsActivity extends Activity {
         });
         root.addView(seekBar);
 
-        // 关闭按钮
         Button closeBtn = new Button(this);
         closeBtn.setText("关闭");
         closeBtn.setTextColor(0xFF000000);
@@ -130,7 +102,33 @@ public class SettingsActivity extends Activity {
         setContentView(scroll);
     }
 
-    private Button makeBtn(String label, final String value, final TextView display, final String key) {
+    private void addSection(LinearLayout root, String label) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextSize(16);
+        tv.setTextColor(0xFF55EEAA);
+        tv.setPadding(0, 25, 0, 10);
+        root.addView(tv);
+    }
+
+    private TextView addCurrent(LinearLayout root, String text) {
+        TextView tv = new TextView(this);
+        tv.setText("当前: " + text);
+        tv.setTextSize(14);
+        tv.setTextColor(0xFF1C9E6A);
+        tv.setPadding(0, 0, 0, 15);
+        root.addView(tv);
+        return tv;
+    }
+
+    private LinearLayout makeRow(Button... btns) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        for (Button b : btns) row.addView(b);
+        return row;
+    }
+
+    private Button makeBtn(String label, final String value, final TextView display, final String key, final boolean isLayout) {
         Button btn = new Button(this);
         btn.setText(label);
         btn.setTextColor(0xFF000000);
@@ -143,11 +141,26 @@ public class SettingsActivity extends Activity {
         btn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 prefs.edit().putString(key, value).apply();
-                if (key.equals("default_layout")) {
-                    display.setText("当前: " + layoutName(value));
-                } else {
-                    display.setText("当前: " + behaviorName(value));
-                }
+                display.setText("当前: " + (isLayout ? layoutName(value) : behaviorName(value)));
+            }
+        });
+        return btn;
+    }
+
+    private Button makeThemeBtn(String label, final String value, final TextView display) {
+        Button btn = new Button(this);
+        btn.setText(label);
+        btn.setTextColor(0xFF000000);
+        btn.setBackgroundColor(0xFF1C9E6A);
+        btn.setPadding(20, 10, 20, 10);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 10, 0);
+        btn.setLayoutParams(params);
+        btn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                prefs.edit().putString("theme", value).apply();
+                display.setText("当前: " + themeName(value));
             }
         });
         return btn;
@@ -160,12 +173,18 @@ public class SettingsActivity extends Activity {
             default: return "九宫格";
         }
     }
-
     private String behaviorName(String val) {
         switch (val) {
             case "direct": return "直接输入";
             case "keyevent": return "终端键码";
             default: return "T9中文";
+        }
+    }
+    private String themeName(String val) {
+        switch (val) {
+            case "Amber": return "琥珀";
+            case "IBM": return "IBM";
+            default: return "默认";
         }
     }
 }
