@@ -29,6 +29,8 @@ public class KeyboardGestureController {
         void nextPage();
         void prevPage();
         int getTotalCandidatePages();
+        NineKeyKeyboard.InputMode getInputMode();
+        MultiTapEngine getMultiTapEngine();
     }
 
     public KeyboardGestureController(List<KeySlot> keys, KeyboardActionDispatcher dispatcher, final SessionAccess session) {
@@ -82,12 +84,21 @@ public class KeyboardGestureController {
                     List<String> cands = session.candidates();
                     for (int i = 0; i < rects.size(); i++) {
                         if (rects.get(i).contains((int) x, (int) y)) {
-                            int globalIndex = i; // 点击的是当前页的第i个，直接取cands对应
-                            if (globalIndex < cands.size()) {
-                                dispatcher.onCommand(new InsertText(cands.get(globalIndex)));
+                            if (session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
+                                // 英文模式：点击候选词直接输出
+                                if (i < cands.size()) {
+                                    dispatcher.onCommand(new InsertText(cands.get(i)));
+                                }
+                                session.composingDigits().setLength(0);
+                                cands.clear();
+                                session.getMultiTapEngine().reset();
+                            } else {
+                                if (i < cands.size()) {
+                                    dispatcher.onCommand(new InsertText(cands.get(i)));
+                                }
+                                session.composingDigits().setLength(0);
+                                cands.clear();
                             }
-                            session.composingDigits().setLength(0);
-                            cands.clear();
                             session.invalidateView();
                             return true;
                         }
@@ -102,7 +113,6 @@ public class KeyboardGestureController {
                 return true;
             case MotionEvent.ACTION_MOVE:
                 if (activeKey == null) {
-                    // 候选栏区域上下滑动翻页
                     if (startY < barHeight && y < barHeight && session.getTotalCandidatePages() > 1) {
                         float dy = y - startY;
                         if (Math.abs(dy) > 40f) {
@@ -158,6 +168,22 @@ public class KeyboardGestureController {
             case SWIPE_RIGHT: cmd = activeKey.swipeRight; break;
         }
         if (cmd == null) return;
+
+        if (g == GestureRecognizer.Gesture.TAP && session.getInputMode() == NineKeyKeyboard.InputMode.ENGLISH) {
+            String rawText = KeyboardRenderer.cmdLabel(activeKey.tap);
+            if (KeyboardRenderer.isNumeric(rawText)) {
+                int digit = Integer.parseInt(rawText);
+                String result = session.getMultiTapEngine().processDigit(digit);
+                session.composingDigits().setLength(0);
+                session.composingDigits().append(result);
+                session.candidates().clear();
+                // 显示当前 MultiTap 状态作为单个候选
+                session.candidates().add(result);
+                session.invalidateView();
+                return;
+            }
+        }
+
         String rawText = KeyboardRenderer.cmdLabel(activeKey.tap);
         if (g == GestureRecognizer.Gesture.TAP && KeyboardRenderer.isNumeric(rawText)) {
             session.composingDigits().append(rawText);

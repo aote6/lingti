@@ -104,7 +104,6 @@ public class SimpleImeService extends InputMethodService {
                                    int candidatesStart, int candidatesEnd) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd,
                                 candidatesStart, candidatesEnd);
-        // 光标位置变化时重置候选状态
         if (keyboardView != null && oldSelStart != newSelStart) {
             keyboardView.resetSession();
         }
@@ -138,6 +137,14 @@ public class SimpleImeService extends InputMethodService {
 
         RuleLoader.LayoutConfig layoutConfig = RuleLoader.load(this, "default.json");
         keyboardView = new NineKeyKeyboard(this, dispatcher, layoutConfig.keys);
+
+        // 根据 context 设置输入模式
+        if ("english".equals(layoutConfig.context)) {
+            keyboardView.setInputMode(NineKeyKeyboard.InputMode.ENGLISH);
+        } else {
+            keyboardView.setInputMode(NineKeyKeyboard.InputMode.CHINESE);
+        }
+
         keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
         container.addView(keyboardView);
         return container;

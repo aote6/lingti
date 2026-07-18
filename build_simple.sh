@@ -24,6 +24,7 @@ ecj -d $BUILD_DIR/classes \
     $SRC_DIR/GestureRecognizer.java \
     $SRC_DIR/RuleLoader.java \
     $SRC_DIR/T9Engine.java \
+    $SRC_DIR/MultiTapEngine.java \
     $SRC_DIR/ThemeTokens.java \
     $SRC_DIR/KeyboardActionDispatcher.java \
     $SRC_DIR/ContinuousDeleteHelper.java \

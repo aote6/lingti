@@ -22,6 +22,10 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     private int candidatePage = 0;
     private float candidateBarHeight;
 
+    public enum InputMode { CHINESE, ENGLISH }
+    private InputMode inputMode = InputMode.CHINESE;
+    private final MultiTapEngine multiTapEngine = new MultiTapEngine();
+
     public NineKeyKeyboard(Context context, KeyboardActionDispatcher dispatcher, List<RuleLoader.KeyDef> defs) {
         super(context);
         for (RuleLoader.KeyDef d : defs) {
@@ -32,6 +36,12 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         }
         gestureController = new KeyboardGestureController(keys, dispatcher, this);
     }
+
+    public void setInputMode(InputMode mode) {
+        this.inputMode = mode;
+        resetSession();
+    }
+    public InputMode getInputMode() { return inputMode; }
 
     @Override public StringBuilder composingDigits() { return composingDigits; }
     @Override public List<String> candidates() { return candidates; }
@@ -53,11 +63,14 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
         if (total > 1) candidatePage = (candidatePage - 1 + total) % total;
     }
 
+    public MultiTapEngine getMultiTapEngine() { return multiTapEngine; }
+
     public void resetSession() {
         composingDigits.setLength(0);
         candidates.clear();
         candidateRects.clear();
         candidatePage = 0;
+        multiTapEngine.reset();
         gestureController.reset();
         invalidate();
     }
@@ -91,7 +104,7 @@ public class NineKeyKeyboard extends View implements KeyboardGestureController.S
     protected void onDraw(Canvas canvas) {
         int start = candidatePage * CANDIDATE_PAGE_SIZE;
         int end = Math.min(start + CANDIDATE_PAGE_SIZE, candidates.size());
-        List<String> pageCandidates = candidates.subList(start, end);
+        List<String> pageCandidates = candidates.isEmpty() ? candidates : candidates.subList(start, end);
         int totalPages = getTotalCandidatePages();
 
         renderer.drawKeyboard(canvas, keys, candidateBarHeight,
