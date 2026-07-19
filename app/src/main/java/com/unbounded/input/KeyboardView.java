@@ -31,6 +31,8 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
 
     private boolean editMode = false;
     private KeyModel dragKey = null;
+    private KeyModel resizeKey = null;
+    private static final float RESIZE_HANDLE_DP = 32f;
     private Rect editButtonRect = new Rect();
     private Rect saveButtonRect = new Rect();
     private Rect restoreButtonRect = new Rect();
@@ -131,7 +133,10 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         }
         drawSlotButtons(canvas);
         drawEditControls(canvas);
-        if (editMode) drawTrashZone(canvas);
+        if (editMode) {
+            drawTrashZone(canvas);
+            drawResizeHandles(canvas);
+        }
         drawFlashMessage(canvas);
     }
 
@@ -144,6 +149,24 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         text.setTextSize(14f);
         text.setColor(0xFFFFFFFF);
         drawCenteredText(canvas, trashZoneRect, hovering ? "松手删除" : "拖到此处删除", text);
+    }
+
+    private void drawResizeHandles(Canvas canvas) {
+        List<KeyModel> keys = layoutManager.getProfile().allKeys();
+        Paint handlePaint = new Paint();
+        handlePaint.setAntiAlias(true);
+        handlePaint.setColor(0xAAFFFFFF);
+        float handlePx = RESIZE_HANDLE_DP * dpScale;
+        for (KeyModel k : keys) {
+            float right = k.rect.right;
+            float bottom = k.rect.bottom;
+            android.graphics.Path path = new android.graphics.Path();
+            path.moveTo(right, bottom - handlePx * 0.5f);
+            path.lineTo(right, bottom);
+            path.lineTo(right - handlePx * 0.5f, bottom);
+            path.close();
+            canvas.drawPath(path, handlePaint);
+        }
     }
 
     private void drawSlotButtons(Canvas canvas) {
@@ -288,16 +311,40 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
 
     private boolean handleEditTouch(MotionEvent event, int x, int y) {
         switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                dragKey = findTopmostKey(x, y);
+            case MotionEvent.ACTION_DOWN: {
+                KeyModel topKey = findTopmostKey(x, y);
+                if (topKey != null && isInResizeHandle(topKey, x, y)) {
+                    resizeKey = topKey;
+                    dragKey = null;
+                } else {
+                    dragKey = topKey;
+                    resizeKey = null;
+                }
                 return true;
+            }
             case MotionEvent.ACTION_MOVE:
+                if (resizeKey != null) {
+                    float touchXPercent = x * 100f / getWidth();
+                    float touchYPercent = y * 100f / getHeight();
+                    float minWPercent = RESIZE_HANDLE_DP * dpScale * 100f / getWidth();
+                    float minHPercent = RESIZE_HANDLE_DP * dpScale * 100f / getHeight();
+                    float newW = touchXPercent - resizeKey.percentX;
+                    float newH = touchYPercent - resizeKey.percentY;
+                    newW = Math.max(minWPercent, Math.min(newW, 100f - resizeKey.percentX));
+                    newH = Math.max(minHPercent, Math.min(newH, 100f - resizeKey.percentY));
+                    resizeKey.percentW = newW;
+                    resizeKey.percentH = newH;
+                    resizeKey.hasPercentRect = true;
+                    layoutManager.computeRects();
+                    invalidate();
+                    return true;
+                }
                 if (dragKey == null) return true;
-                float touchXPercent = x * 100f / getWidth();
-                float touchYPercent = y * 100f / getHeight();
+                float touchXPercent2 = x * 100f / getWidth();
+                float touchYPercent2 = y * 100f / getHeight();
                 float barPercent = candidateBarHeight * 100f / getHeight();
-                float newX = touchXPercent - dragKey.percentW;
-                float newY = touchYPercent;
+                float newX = touchXPercent2 - dragKey.percentW;
+                float newY = touchYPercent2;
                 newX = Math.max(0f, Math.min(newX, 100f - dragKey.percentW));
                 newY = Math.max(barPercent, Math.min(newY, 100f - dragKey.percentH));
                 dragKey.setPercentPosition(newX, newY);
@@ -306,6 +353,11 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
+                if (resizeKey != null) {
+                    resizeKey = null;
+                    invalidate();
+                    return true;
+                }
                 if (dragKey != null && trashZoneRect.contains(x, y)) {
                     String deletedLabel = dragKey.label;
                     layoutManager.getProfile().removeKey(dragKey);
@@ -326,5 +378,12 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
             if (k.rect.contains(x, y)) return k;
         }
         return null;
+    }
+
+    private boolean isInResizeHandle(KeyModel key, int x, int y) {
+        float handlePx = RESIZE_HANDLE_DP * dpScale;
+        float left = key.rect.right - handlePx;
+        float top = key.rect.bottom - handlePx;
+        return x >= left && x <= key.rect.right && y >= top && y <= key.rect.bottom;
     }
 }
