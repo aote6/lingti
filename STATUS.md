@@ -77,8 +77,14 @@ Touch → GestureRecognizer → KeyboardGestureController → Command → InputE
   - `Command.java` — 抽象基类 + Type 枚举（`INSERT_TEXT/BACKSPACE/COMMIT/KEY_EVENT/KEY_CHORD/CLIPBOARD_*`）+ 静态工厂方法。各类型有独立子类（`InsertText`/`Backspace`/`Commit`/`ClipboardCommand`，`KeyEventCommand`/`KeyChordCommand` 在 `core/command/` 下），**是真解耦**，`KeyboardActionDispatcher` 里没有 `if (id.equals(...))` 硬编码判断。
   - `InputEngine.java` — 唯一执行点，把 Command 派发到 `InputConnection`。**重要认知**：`COMMIT` 类型对应 `ic.finishComposingText()`，这**不等于**发送回车/换行，它只在有"正在拼写中的组合文本"时才有效果。当前所有文本输入都走 `commitText()` 直接提交，从不进入 composing 状态，所以 `COMMIT` 命令在当前架构下是空操作。**需要真正的 Enter 效果时，用 `key_event` 配置 `keyCode:66`（KEYCODE_ENTER）**，不要用 `commit` 类型。
 - **服务入口**
-  - `SimpleImeService.java` — `InputMethodService` 子类。`onCreateInputView()` 建 `inputRoot` 容器后调用 `rebuildKeyboard()`。`rebuildKeyboard()` 是布局层的唯一装配点：`RuleLoader.load(this, "default.json").buildProfile()` → `new KeyboardView(this, dispatcher, profile)` → `inputRoot.addView(...)`。**这条链路 2026-07-19 之前是空的（`// TODO: JSON 布局加载`），当天首次接通**。
-  - `KeyboardView.java` — 被动接收已构造好的 `LayoutProfile`，自己不决定布局内容，持有 `KeyboardRenderer` + `KeyboardGestureController` + `LayoutManager`。
+  - `SimpleImeService.java` — `InputMethodService` 子类。`onCreateInputView()` 建 `inputRoot` 容器后调用 `rebuildKeyboard()`。`rebuildKeyboard()` 是布局层的唯一装配点，**现在还负责槽位管理**：`getActiveSlot()`/`setActiveSlot()` 读写 `SharedPreferences("lingti_prefs")` 里的 `active_slot`（默认 1）；根据槽位号拼出文件名 `layout_slot{N}.json`，该槽位文件在 `getExternalFilesDir()` 不存在时回退加载内置的 `default.json`；组装出 `onRestore`（删该槽位文件+清缓存+重建）和 `onSlotSwitch`（写入新槽位号+重建）两个回调，一起传给 `KeyboardView`。**这条链路 2026-07-19 上午之前是空的（`// TODO: JSON 布局加载`），当天首次接通，同一天下午加上了多槽位**。
+  - `KeyboardView.java` — 被动接收已构造好的 `LayoutProfile`，自己不决定布局内容，持有 `KeyboardRenderer` + `KeyboardGestureController` + `LayoutManager`。**构造函数当前签名**：`KeyboardView(context, dispatcher, profile, layoutFileName, layoutStateName, onRestore, activeSlot, slotSwitchListener)`——这个签名已经变过几次，改动前务必先 `cat` 确认当前实际参数，不要凭本文档假设。
+    - 顶部常驻一条 `controlBarHeight`（36dp）工具栏，**独立于键盘按键区域**，键盘整体通过 `candidateBarHeight` 让出这条空间，工具栏和字母键不再互相遮挡（历史上出现过遮挡bug，已修复）。
+    - 工具栏左侧：3个槽位按钮（1/2/3），常驻显示，不需要进编辑模式即可点击切换，当前槽位高亮。
+    - 工具栏右侧：编辑/退出 开关（常驻），保存、还原（仅编辑模式下显示）。
+    - **编辑模式**：`layoutManager.convertAllToPercent()` 把所有键（不论原是 span 还是百分比）统一转成百分比坐标，此后拖拽只操作百分比字段。拖拽锚点是**键的右上角对准手指**（不是左上角、也不是保持初始按压偏移）——这是用户明确要求的设计，因为右手拇指从左上角会挡住被拖动的键。
+    - **删除功能**：编辑模式下屏幕最下方一条 `trashZoneHeight`（40dp）红色提示带，把键拖进这条区域松手即删除（`LayoutProfile.removeKey()` 摘除数据 + `KeyboardGestureController.updateKeys()` 刷新命中列表）。**这里有个必须记住的坑**：`KeyboardGestureController` 的按键列表原本是构造时的一份固定快照，删除/新增键之后如果不调用 `updateKeys()` 刷新，会出现"画面上键已经消失、但原来的位置摸上去还能触发它"的幽灵键 bug——已修复，但以后任何会改变按键数量的新功能（比如以后的组件库拖入新键）都要记得同样调用 `updateKeys()`。
+    - **保存反馈**：不用系统 `Toast`（输入法进程里 Toast 经常被系统静默拦截，不可靠，已实测确认无效），改成 `showFlash()` 在画布上自己画一条临时提示框，1.2秒后自动消失。
 
 ## 存储路径规则（踩过坑，记住）
 
@@ -100,14 +106,37 @@ Touch → GestureRecognizer → KeyboardGestureController → Command → InputE
 
 以上 4 处代码修复均已过 `ecj` 编译验证，并在真机上通过实际点击测试确认修复生效（浮动键不再被 span 布局吃掉位置，回车键有实际换行效果，重叠区域点击命中正确的可视层）。
 
+## 2026-07-19 当天下午/晚上完成的工作（同一天第二轮会话）
+
+上午重建布局层之后，用户实机体验并明确提出四个新需求：删除不想要的按键、拖拽缩放键的大小、多套可切换的布局（不同 App 用不同设计）、预置组件库（方向键组/剪贴板组合等模板拖入画布）。经确认优先级：**多套布局用手动 1/2/3 切换（不做自动识别 App），先做多套布局，再做删除，缩放和组件库押后**。
+
+完成的功能（均已实机验证）：
+
+1. **拖拽摆放模式**（当天最核心的里程碑，直接命中"设计沟通成本太高"这个真实瓶颈）：编辑模式开关 + 拖拽移动 + 保存 + 还原。`KeyModel` 的百分比坐标字段从 `final` 改为可变，加 `setPercentRect()`/`setPercentPosition()`。`LayoutManager.convertAllToPercent()` 把所有键统一转百分比。`RuleLoader.save()` 把当前 `LayoutProfile` 序列化回 JSON 写入 `getExternalFilesDir()`，`serializeCommand()` 与 `parseCommand()` 严格对称，保证读写互相兼容。
+2. **多套布局槽位（1/2/3，手动切换）**：`SimpleImeService` 管理 `layout_slot{1,2,3}.json` 三个独立文件，当前槽位号存 `SharedPreferences`，重启不丢。每个槽位各自独立保存/还原，互不影响。
+3. **删除按键**：拖进屏幕底部的删除区松手即删除。同时发现并修复了一个潜在的幽灵键 bug（见架构一节 `KeyboardGestureController.updateKeys()` 说明）——这是本轮最容易被忽略但影响很大的一处修复。
+4. **保存操作的用户反馈**：发现输入法进程里系统 `Toast` 不出现（已实机验证确认不可靠），改用画布内自绘的临时提示 `showFlash()`。
+5. **工具栏与键盘按键区域分离**：早期版本编辑/保存/还原按钮是浮在键盘右上角，会遮挡第一排字母键（Q/W 等），改成独立一条常驻工具栏（`controlBarHeight`），键盘整体让出这条空间。
+
+**中途踩过的坑，写下来避免重复**：
+- 还原按钮第一版只删了外部 JSON 文件，忘记清 `RuleLoader` 的静态内存缓存（`cache` 这个 `Map`），导致"删了文件但读到的还是缓存里旧数据"，表现为"还原了但好像没还原"。加了 `RuleLoader.clearCache(fileName)`，还原前必须先调用它。
+- 打补丁时如果 Python 脚本因为其他原因没真正执行（比如命令行输出被截断、误跳过了某一步），编译时会报"方法未定义"之类的 `ERROR`（不是 warning）。`build_simple.sh` 里有 `set -e`，编译失败时脚本会在 `ecj` 那一步直接中断，**不会生成新 APK**，此时如果紧接着跑 `termux-open`，打开的其实是上一次编译成功的旧 APK——测试结果会显示"一切正常"，但那是假象，测的是旧版本。**每次编译后必须确认输出里真的出现"构建完成"字样，并且没有 `ERROR`（只有 `WARNING` 可以忽略），才能信任接下来的装机测试结果。**
+
+**用户反馈的开放问题（不算 bug，记录待用户后续决定是否处理）**：
+- 空格键、回车键因为 `span` 明显大于普通字母键、且贴在屏幕最下方，拖拽手感比小键别扭（不是判定逻辑错，是几何形状导致操作体验差）。以后如果需要改善，可以加"长按弹出删除确认"作为拖拽删除之外的备选方案。
+- 用户提到"几小时前保存的布局后来好像变回了原始样子"，但不确定是否真的丢失、无法稳定复现。**Claude 提出的假设、用户选择暂不处理**：怀疑是华为 EMUI 系统对长时间后台的 App 有激进的进程清理/省电策略，可能清空过一次应用状态；也可能是当时切到了一个从未存过内容、自动回退显示出厂样式的槽位，误以为是"丢失"。**这件事目前没有定论，如果未来又复现，应引导用户去手机设置里把灵体加入"受保护应用/启动管理"白名单，排除系统杀后台的可能性，而不是默认怀疑代码逻辑。**
+
 ## 已知遗留 / 未完成
 
-- [ ] **拖拽摆放模式**：长按按钮拖拽定位、松手写回 JSON。依赖百分比坐标（已完成），需要新写触摸交互 + 文件写入逻辑（写到 `getExternalFilesDir()`，见上）。这是下一个自然的里程碑。
-- [ ] `KeyboardRenderer.drawKeyboard()` 里 `w`/`h` 两个局部变量现在未使用（是这次去掉重复坐标计算后的副作用），无害但可以顺手清理。
+- [ ] **拖拽缩放按键大小**：目前拖拽只处理位置（`percentX/percentY`），改大小需要新的触摸判定（比如键角落的缩放手柄），比移动复杂一档。用户已确认优先级在多套布局、删除之后。
+- [ ] **预置组件库**：编辑模式里加一个"素材面板"，放几个预先搭好的模板按钮（方向键组、剪贴板+回车组合等），拖一个进画布就新建一个键，不用手动配置 command。纯加法，不影响已有功能，优先级最低，可随时插入。
+- [ ] `KeyboardRenderer.drawKeyboard()` 里 `w`/`h` 两个局部变量未使用（去掉重复坐标计算后的历史遗留），无害。
 - [ ] `SimpleImeService.pasteRecentClipboard()` 未被调用，历史遗留死代码。
 - [ ] `LayoutManager.currentLayout` 字段赋值后未被读取，历史遗留。
-- [ ] `default.json` 目前只是一份手写的测试布局（QWERTY + 一个悬浮键），不是最终产品布局，后续会被用户自定义的按钮组合替代。
-- [ ] 同一行内百分比键和 span 键混用时，目前会整行退化为 span 处理并打印警告，但没有在 `RuleLoader` 加载阶段做 assert 硬拦截——这个需要谨慎，因为 `RuleLoader.load()` 现在真正跑在生产链路上了，之前建议的"加载时 assert 报错"要重新评估是直接崩溃更好还是保留静默降级更好。
+- [ ] `default.json`（出厂默认布局）目前只是一份手写的 QWERTY 测试布局，不是最终产品布局。
+- [ ] 同一行内百分比键和 span 键混用时，目前会整行退化为 span 处理并打印警告，没有在 `RuleLoader` 加载阶段做 assert 硬拦截。
+- [ ] 空格/回车键拖拽删除手感别扭（见上，用户认为问题不大，暂不处理）。
+- [ ] "布局好像自动还原过一次"的现象未确诊（见上，用户选择暂不深究，以后复现了再排查，优先怀疑 EMUI 后台清理而非代码逻辑）。
 
 ## 给新会话的 Claude 的行动准则
 

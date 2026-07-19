@@ -11,7 +11,7 @@ import java.util.List;
 import com.unbounded.input.core.layout.KeyModel;
 
 public class KeyboardGestureController {
-    private final List<KeyModel> keys;
+    private List<KeyModel> keys;
     private final KeyboardActionDispatcher dispatcher;
     private final Handler longPressHandler = new Handler(Looper.getMainLooper());
     private final GestureRecognizer recognizer = new GestureRecognizer();
@@ -62,6 +62,17 @@ public class KeyboardGestureController {
 
     public KeyModel getActiveKey() { return activeKey; }
     public boolean isLongPressed() { return isLongPressed; }
+
+    // 删除/新增按键后调用：刷新命中判定用的按键列表，避免持有已从布局里
+    // 摘除的键的引用（"幽灵键"——画面上已经不见了，但原来的区域还能点中它）。
+    public void updateKeys(List<KeyModel> newKeys) {
+        this.keys = newKeys;
+        if (activeKey != null && !newKeys.contains(activeKey)) {
+            activeKey = null;
+            isGestureConsumed = false;
+            isLongPressed = false;
+        }
+    }
 
     private Command getRepeatableCommand(KeyModel key) {
         if (key.tap == null) return null;

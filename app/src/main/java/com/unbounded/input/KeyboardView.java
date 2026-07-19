@@ -25,6 +25,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
 
     private float candidateBarHeight;
     private float controlBarHeight;
+    private float trashZoneHeight;
     private float dpScale = 1f;
     private boolean clipboardPanelOpen = false;
 
@@ -33,6 +34,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     private Rect editButtonRect = new Rect();
     private Rect saveButtonRect = new Rect();
     private Rect restoreButtonRect = new Rect();
+    private Rect trashZoneRect = new Rect();
     private Rect[] slotButtonRects = new Rect[3];
     private final String layoutFileName;
     private final String layoutStateName;
@@ -107,13 +109,16 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         saveButtonRect.set(rightX - btnW * 2 - gap, topY, rightX - btnW - gap, topY + btnH);
         restoreButtonRect.set(rightX - btnW * 3 - gap * 2, topY, rightX - btnW * 2 - gap * 2, topY + btnH);
 
-        // 槽位切换按钮放在控制栏左侧，常驻显示，和右侧编辑组不冲突。
         int slotBtnW = Math.round(36 * dpScale);
         int leftX = Math.round(6 * dpScale);
         for (int i = 0; i < slotButtonRects.length; i++) {
             int sx = leftX + i * (slotBtnW + gap);
             slotButtonRects[i].set(sx, topY, sx + slotBtnW, topY + btnH);
         }
+
+        // 删除区：屏幕最下方一条横带，编辑模式下才显示和生效。
+        trashZoneHeight = 40 * dpScale;
+        trashZoneRect.set(0, h - Math.round(trashZoneHeight), w, h);
     }
 
     @Override
@@ -126,7 +131,19 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         }
         drawSlotButtons(canvas);
         drawEditControls(canvas);
+        if (editMode) drawTrashZone(canvas);
         drawFlashMessage(canvas);
+    }
+
+    private void drawTrashZone(Canvas canvas) {
+        Paint bg = new Paint();
+        boolean hovering = dragKey != null && trashZoneRect.contains(dragKey.rect.centerX(), dragKey.rect.centerY());
+        bg.setColor(hovering ? 0xAAFF3333 : 0x66992222);
+        canvas.drawRect(trashZoneRect, bg);
+        Paint text = ThemeTokens.newTextPaint();
+        text.setTextSize(14f);
+        text.setColor(0xFFFFFFFF);
+        drawCenteredText(canvas, trashZoneRect, hovering ? "松手删除" : "拖到此处删除", text);
     }
 
     private void drawSlotButtons(Canvas canvas) {
@@ -289,7 +306,14 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
+                if (dragKey != null && trashZoneRect.contains(x, y)) {
+                    String deletedLabel = dragKey.label;
+                    layoutManager.getProfile().removeKey(dragKey);
+                    gestureController.updateKeys(layoutManager.getProfile().allKeys());
+                    showFlash("已删除: " + deletedLabel);
+                }
                 dragKey = null;
+                invalidate();
                 return true;
         }
         return true;
