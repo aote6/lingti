@@ -9,7 +9,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,10 +17,8 @@ import android.content.ClipboardManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
-
-import com.unbounded.input.core.layout.KeyboardLayout;
 import com.unbounded.input.core.layout.LayoutProfile;
-import com.unbounded.input.layouts.terminal.UnexpectedTerminalLayout;
+
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,7 +31,7 @@ import java.util.Locale;
 
 public class SimpleImeService extends InputMethodService {
     private static File logFile;
-    private NineKeyKeyboard keyboardView;
+    private KeyboardView keyboardView;
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
     private FrameLayout inputRoot;
@@ -75,6 +72,16 @@ public class SimpleImeService extends InputMethodService {
                 }
             });
         }
+    }
+
+    private int getActiveSlot() {
+        if (prefs == null) prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
+        return prefs.getInt("active_slot", 1);
+    }
+
+    private void setActiveSlot(int slot) {
+        if (prefs == null) prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
+        prefs.edit().putInt("active_slot", slot).apply();
     }
 
     private int getKeyboardHeight() {
@@ -166,12 +173,45 @@ public class SimpleImeService extends InputMethodService {
             }
         };
 
-        KeyboardLayout layout = new UnexpectedTerminalLayout();
-        LayoutProfile profile = layout.build();
-        keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
-        keyboardView.setInputMode(NineKeyKeyboard.InputMode.TERMINAL);
-        keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
-        inputRoot.addView(keyboardView);
+        final int activeSlot = getActiveSlot();
+        // 每个槽位对应独立文件；保存永远写这个文件，加载优先读这个文件，
+        // 该槽位还没存过东西时才回退到内置的 default.json（出厂样式）。
+        final String slotFileName = "layout_slot" + activeSlot + ".json";
+        java.io.File externalDir = getExternalFilesDir(null);
+        String loadFileName = slotFileName;
+        if (externalDir == null || !new java.io.File(externalDir, slotFileName).exists()) {
+            loadFileName = "default.json";
+        }
+
+        RuleLoader.LayoutConfig config = RuleLoader.load(this, loadFileName);
+        LayoutProfile profile = config.buildProfile();
+        String stateName = config.activeState != null ? config.activeState : "main";
+
+        Runnable onRestore = new Runnable() {
+            @Override
+            public void run() {
+                java.io.File dir = getExternalFilesDir(null);
+                if (dir != null) {
+                    java.io.File saved = new java.io.File(dir, slotFileName);
+                    if (saved.exists()) saved.delete();
+                }
+                RuleLoader.clearCache(slotFileName);
+                rebuildKeyboard();
+            }
+        };
+
+        KeyboardView.SlotSwitchListener onSlotSwitch = new KeyboardView.SlotSwitchListener() {
+            @Override
+            public void onSwitchSlot(int slot) {
+                setActiveSlot(slot);
+                rebuildKeyboard();
+            }
+        };
+
+        keyboardView = new KeyboardView(this, dispatcher, profile, slotFileName, stateName,
+                onRestore, activeSlot, onSlotSwitch);
+        inputRoot.addView(keyboardView, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, h));
     }
 
     @Override
@@ -197,20 +237,7 @@ public class SimpleImeService extends InputMethodService {
         int h = getKeyboardHeight();
         inputRoot.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
 
-        KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
-            @Override
-            public void onCommand(Command cmd) {
-                InputConnection ic = getCurrentInputConnection();
-                if (ic != null) InputEngine.execute(ic, cmd);
-            }
-        };
-
-        KeyboardLayout layout = new UnexpectedTerminalLayout();
-        LayoutProfile profile = layout.build();
-        keyboardView = new NineKeyKeyboard(this, dispatcher, profile);
-        keyboardView.setInputMode(NineKeyKeyboard.InputMode.TERMINAL);
-        keyboardView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.BOTTOM));
-        inputRoot.addView(keyboardView);
+        rebuildKeyboard();
         return inputRoot;
     }
 

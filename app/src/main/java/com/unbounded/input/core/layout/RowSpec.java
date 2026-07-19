@@ -17,4 +17,19 @@ public class RowSpec {
         for (KeyModel k : keys) sum += k.span;
         return sum;
     }
+
+    // 整行是否为纯百分比定位（第一个键定基调）
+    public boolean isPercentRow() {
+        if (keys.isEmpty()) return false;
+        return keys.get(0).hasPercentRect;
+    }
+
+    // 一行内同时存在百分比键和span键，视为配置错误
+    public boolean isMixedRow() {
+        boolean sawPercent = false, sawSpan = false;
+        for (KeyModel k : keys) {
+            if (k.hasPercentRect) sawPercent = true; else sawSpan = true;
+        }
+        return sawPercent && sawSpan;
+    }
 }

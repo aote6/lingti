@@ -3,7 +3,6 @@ package com.unbounded.input;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import java.util.List;
 
 import com.unbounded.input.core.layout.KeyModel;
@@ -24,33 +23,14 @@ public class KeyboardRenderer {
         canvas.drawText("TERM", 8, barHeight + 18, labelPaint);
 
         // 按 LayoutProfile 逐行渲染
+        // 坐标不在此处计算：key.rect 由 LayoutManager.computeRects() 唯一权威计算
+        // （包括百分比坐标分支），渲染器只负责绘制，不重新计算位置。
         if (profile == null || profile.rows.isEmpty()) return;
 
         List<RowSpec> rows = profile.rows;
-        float maxSpan = 0f;
-        for (RowSpec row : rows) {
-            float s = row.totalSpan();
-            if (s > maxSpan) maxSpan = s;
-        }
-        if (maxSpan == 0f) maxSpan = 10f;
-
-        float remainingHeight = h - barHeight;
-        float rowH = remainingHeight / rows.size();
-        float unit = w / maxSpan;
-        float y = barHeight;
 
         for (RowSpec row : rows) {
-            float rowWidth = row.totalSpan() * unit;
-            float x = (w - rowWidth) / 2f;
             for (KeyModel key : row.keys) {
-                float kw = unit * key.span;
-                float left = x + key.padLeft;
-                float top = y + key.padTop;
-                float right = x + kw - key.padRight;
-                float bottom = y + rowH - key.padBottom;
-
-                key.rect.set((int) left, (int) top, (int) right, (int) bottom);
-
                 // 按键背景
                 Paint bgPaint = ThemeTokens.newBgPaint();
                 if (key == activeKey) {
@@ -82,9 +62,7 @@ public class KeyboardRenderer {
                     canvas.drawText(key.label, textX, textY, textPaint);
                 }
 
-                x += kw;
             }
-            y += rowH;
         }
     }
 
