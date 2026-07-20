@@ -41,6 +41,8 @@ public class SimpleImeService extends InputMethodService {
 
     public static java.util.List<String> getClipboardHistory() { return clipboardHistory; }
 
+
+
     private void pasteRecentClipboard() {
         if (clipboardHistory.isEmpty()) return;
         InputConnection ic = getCurrentInputConnection();
@@ -168,6 +170,17 @@ public class SimpleImeService extends InputMethodService {
         KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
             @Override
             public void onCommand(Command cmd) {
+                if (keyboardView != null) {
+                    keyboardView.showDiagFlash("cmd=" + (cmd == null ? "null" : cmd.type));
+                }
+                if (cmd != null && cmd.type == Command.Type.CLIPBOARD_OPEN_PANEL) {
+                    if (keyboardView != null) keyboardView.openClipboardPanel();
+                    return;
+                }
+                if (cmd != null && cmd.type == Command.Type.CLIPBOARD_PASTE_RECENT) {
+                    pasteRecentClipboard();
+                    return;
+                }
                 InputConnection ic = getCurrentInputConnection();
                 if (ic != null) InputEngine.execute(ic, cmd);
             }

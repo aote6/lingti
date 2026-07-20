@@ -54,6 +54,12 @@ public class InputEngine {
     }
 
     private static void deleteCharBeforeCursor(InputConnection ic) {
+        CharSequence selected = ic.getSelectedText(0);
+        if (selected != null && selected.length() > 0) {
+            // 有选区时，删除应该删掉选中的内容，而不是删光标前一个字符
+            ic.commitText("", 1);
+            return;
+        }
         CharSequence before = ic.getTextBeforeCursor(2, 0);
         if (before != null && before.length() > 0) {
             char last = before.charAt(before.length() - 1);
