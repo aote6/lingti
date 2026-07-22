@@ -24,8 +24,8 @@
 - 所有代码交互靠复制粘贴终端命令完成。
 - **不用 Gradle**，用手写脚本 `build_simple.sh` / `build_release.sh`：`ecj`（Eclipse 编译器）→ `aapt` 打资源 → `d8` 转 dex → `apksigner` 签名。
 - 编译命令：`bash build_simple.sh`，产物在 `build/simple/unbounded-mvp.apk`，装机用 `termux-open build/simple/unbounded-mvp.apk`。
-- 项目路径：`~/storage/shared/lingti`
-- 打补丁的文件放 `~/storage/shared/lingti/.patches/`（这个目录已存在）。
+- 项目路径：`~/lingti`（2026-07-22 从 `~/storage/shared/lingti` 迁移，缩短蛛网快照访问路径）
+- 打补丁的文件放 `~/lingti/.patches/`（这个目录已存在）。
 
 ## 改代码的工作流约定（严格遵守，不要自创别的方式）
 
