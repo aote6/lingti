@@ -302,16 +302,26 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     public boolean onTouchEvent(MotionEvent event) {
         if (clipboardPanelOpen) {
             if (event.getAction() == MotionEvent.ACTION_UP) {
-                java.util.List<String> history = com.unbounded.input.SimpleImeService.getClipboardHistory();
-                int count = history.size();
-                int visibleIdx = renderer.hitTestClipboardItem(getHeight(), count, event.getY());
-                if (visibleIdx >= 0) {
-                    int realIndex = count - 1 - visibleIdx;
-                    if (imeService != null) {
-                        imeService.pasteClipboardItem(realIndex);
-                    }
+                KeyboardRenderer.ClipboardHit hit = renderer.hitTestClipboard(event.getX(), event.getY());
+                switch (hit.action) {
+                    case KeyboardRenderer.ClipboardHit.EXIT:
+                        closeClipboardPanel();
+                        break;
+                    case KeyboardRenderer.ClipboardHit.PASTE:
+                        if (imeService != null) imeService.pasteClipboardItem(hit.index);
+                        invalidate();
+                        break;
+                    case KeyboardRenderer.ClipboardHit.PIN:
+                        com.unbounded.input.SimpleImeService.toggleClipboardPin(hit.index);
+                        invalidate();
+                        break;
+                    case KeyboardRenderer.ClipboardHit.DELETE:
+                        com.unbounded.input.SimpleImeService.deleteClipboardItem(hit.index);
+                        invalidate();
+                        break;
+                    default:
+                        break;
                 }
-                closeClipboardPanel();
             }
             return true;
         }

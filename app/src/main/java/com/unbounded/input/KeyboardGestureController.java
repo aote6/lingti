@@ -164,7 +164,11 @@ public class KeyboardGestureController {
         if (activeKey == null || dispatcher == null) return;
         // 剪贴板键：依次粘贴历史记录
         if (g == GestureRecognizer.Gesture.TAP && "📋".equals(activeKey.label)) {
-            java.util.List<String> history = com.unbounded.input.SimpleImeService.getClipboardHistory();
+            java.util.List<com.unbounded.input.SimpleImeService.ClipboardEntry> entries = com.unbounded.input.SimpleImeService.getClipboardHistory();
+            java.util.List<String> history = new java.util.ArrayList<>();
+            for (com.unbounded.input.SimpleImeService.ClipboardEntry entry : entries) {
+                history.add(entry.text);
+            }
             if (!history.isEmpty()) {
                 // 取第一条，粘贴后移到末尾（循环使用）
                 String item = history.remove(0);
