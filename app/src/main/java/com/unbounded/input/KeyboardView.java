@@ -49,6 +49,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     private final Runnable onRestore;
     private final int activeSlot;
     private final SlotSwitchListener slotSwitchListener;
+    private final SimpleImeService imeService;
 
     private String flashMessage = null;
     private long flashUntil = 0;
@@ -65,6 +66,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         this.onRestore = onRestore;
         this.activeSlot = activeSlot;
         this.slotSwitchListener = slotSwitchListener;
+        this.imeService = (context instanceof SimpleImeService) ? (SimpleImeService) context : null;
         dpScale = getResources().getDisplayMetrics().density;
         List<KeyModel> allKeys = profile.allKeys();
         layoutManager.setLayout(new KeyboardLayout() {
@@ -305,9 +307,8 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
                 int visibleIdx = renderer.hitTestClipboardItem(getHeight(), count, event.getY());
                 if (visibleIdx >= 0) {
                     int realIndex = count - 1 - visibleIdx;
-                    android.inputmethodservice.InputMethodService svc = (android.inputmethodservice.InputMethodService) getContext();
-                    if (svc instanceof com.unbounded.input.SimpleImeService) {
-                        ((com.unbounded.input.SimpleImeService) svc).pasteClipboardItem(realIndex);
+                    if (imeService != null) {
+                        imeService.pasteClipboardItem(realIndex);
                     }
                 }
                 closeClipboardPanel();

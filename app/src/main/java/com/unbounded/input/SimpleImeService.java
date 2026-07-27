@@ -46,6 +46,7 @@ public class SimpleImeService extends InputMethodService {
 
     private void pasteRecentClipboard() {
         if (clipboardHistory.isEmpty()) return;
+        log(this, "[PASTE] history.size=" + clipboardHistory.size() + " isEmpty=" + clipboardHistory.isEmpty());
         String text = clipboardHistory.get(clipboardHistory.size() - 1);
         pasteManager.cancel();
         InputConnection ic = getCurrentInputConnection();
@@ -66,6 +67,7 @@ public class SimpleImeService extends InputMethodService {
             clipboardManager.addPrimaryClipChangedListener(new ClipboardManager.OnPrimaryClipChangedListener() {
                 @Override
                 public void onPrimaryClipChanged() {
+                    log(SimpleImeService.this, "[CLIP] changed, history.size=" + clipboardHistory.size());
                     ClipData clip = clipboardManager.getPrimaryClip();
                     if (clip != null && clip.getItemCount() > 0) {
                         String text = clip.getItemAt(0).getText().toString();
@@ -153,6 +155,7 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
+        log(this, "[LIFECYCLE] onStartInputView restarting=" + restarting + " history.size=" + clipboardHistory.size());
         applyThemeFromPrefs();
         initClipboard();
         if (keyboardView == null) rebuildKeyboard();
