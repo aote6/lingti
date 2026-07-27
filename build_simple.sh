@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PROJECT_DIR=~/storage/shared/lingti
+PROJECT_DIR=~/lingti
 BUILD_DIR=$PROJECT_DIR/build/simple
 SRC_DIR=$PROJECT_DIR/app/src/main/java
 RES_DIR=$PROJECT_DIR/app/src/main/res

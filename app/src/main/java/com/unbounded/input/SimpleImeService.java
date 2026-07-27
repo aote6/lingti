@@ -34,6 +34,7 @@ public class SimpleImeService extends InputMethodService {
     private KeyboardView keyboardView;
     private final Handler focusHandler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
+    private PasteManager pasteManager;
     private FrameLayout inputRoot;
     private static final java.util.List<String> clipboardHistory = new ArrayList<>();
     private static final int MAX_CLIPBOARD_HISTORY = 20;
@@ -45,14 +46,18 @@ public class SimpleImeService extends InputMethodService {
 
     private void pasteRecentClipboard() {
         if (clipboardHistory.isEmpty()) return;
+        String text = clipboardHistory.get(clipboardHistory.size() - 1);
+        pasteManager.cancel();
         InputConnection ic = getCurrentInputConnection();
-        if (ic != null) ic.commitText(clipboardHistory.get(clipboardHistory.size() - 1), 1);
+        pasteManager.paste(ic, text, pasteManager.shouldThrottle(getCurrentInputEditorInfo()));
     }
 
     public void pasteClipboardItem(int index) {
         if (index < 0 || index >= clipboardHistory.size()) return;
+        String text = clipboardHistory.get(index);
+        pasteManager.cancel();
         InputConnection ic = getCurrentInputConnection();
-        if (ic != null) ic.commitText(clipboardHistory.get(index), 1);
+        pasteManager.paste(ic, text, pasteManager.shouldThrottle(getCurrentInputEditorInfo()));
     }
 
     private void initClipboard() {
@@ -121,6 +126,7 @@ public class SimpleImeService extends InputMethodService {
         prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
         applyThemeFromPrefs();
         initClipboard();
+        pasteManager = new PasteManager(focusHandler, prefs);
         log(this, "灵体终端键盘启动");
         Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override

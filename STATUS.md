@@ -188,3 +188,30 @@ Touch → GestureRecognizer → KeyboardGestureController → Command → InputE
 2. 遵守"工作流约定"一节的每一条，尤其是 Python assert 补丁模式和编译验证步骤。
 3. 不要把这个项目和用户的另一个项目"无界（Unbounded，Python 路格来克游戏）"的架构、约定、文件混淆——两者是完全独立的项目，各自的 STATUS.md 只覆盖自己的范围。
 4. 用户的开发环境高度受限（纯手机 Termux），任何建议必须在这个约束下可执行，不要建议需要 PC/IDE/Gradle/Android Studio 的方案。
+
+## 2026-07-27 限速粘贴（PasteManager）——从根因解决 PTY 粘贴丢字符
+
+**问题**：在 Termux 中粘贴大段代码时，PTY 缓冲区被瞬间打穿，内核静默丢弃超出部分，导致随机丢字符、断行。
+
+**根因**：输入法 `commitText()` 一次性把整个剪贴板内容塞给 TerminalView → JNI → PTY，超出内核行缓冲上限。
+
+**解决方案**：新建独立模块 `PasteManager.java`，在输入法发送端做流量控制：
+- 检测目标应用是终端类（默认 `com.termux`，可通过 SharedPreferences 配置包名列表）
+- 智能分块：按换行符切，最大 512 字节，找不到换行就硬切（64~2048 可配）
+- `postDelayed` 逐块发送，每块间隔 15ms（可配），给 PTY 留出处理时间
+- `InputConnection` 快照 + try-catch 异常保护，防止粘贴中途连接失效
+- 用 `PASTE_TOKEN` 精确取消，不影响 Handler 上其他任务（`onStartInputView` 的延迟刷新）
+- 非终端 App 保持原有的一次性快速粘贴
+
+**改动文件**：
+- 新增 `PasteManager.java` — 独立限速粘贴管理器
+- 修改 `SimpleImeService.java` — 只加 1 个字段 + 改 2 个方法
+- 修改 `build_simple.sh` — 修复 PROJECT_DIR 路径（废弃的 /storage/shared/lingti → ~/lingti）
+
+**已验证**：200 行文本完整送达，无丢行丢字，发送流畅不卡顿。
+
+### 已知遗留问题（本次未处理）
+
+- **剪贴板缓存 bug**：切换输入法后再切回来，点击粘贴无反应，是灵体原有问题（`clipboardHistory` 监听器生命周期），与限速粘贴无关，需要单独排查。
+- **`termux-open` 安装 APK 报解析错误**：仍存在，用户靠文件管理器手动安装绕过。
+- **诊断用 `showDiagFlash` 仍留在代码里**：每次按键弹提示，等剪贴板序列化 bug 修完后一并清理。
