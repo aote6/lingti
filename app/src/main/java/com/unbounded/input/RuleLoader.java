@@ -206,6 +206,8 @@ public class RuleLoader {
                 if (metaState != 0) return new KeyChordCommand(codes, metaState);
                 return KeyChordCommand.of(codes);
             }
+            case "clipboard_open_panel": return Command.clipboardOpenPanel();
+            case "clipboard_paste_recent": return Command.clipboardPasteRecent();
             default: return null;
         }
     }
@@ -281,8 +283,7 @@ public class RuleLoader {
     }
 
     // 和 parseCommand() 对称：把 Command 对象还原成 JSON。
-    // 注意：CLIPBOARD_* 类型不支持往返序列化（parseCommand 本来就不认识这个type），
-    // 剪贴板键目前是靠 label 硬匹配触发的，不受影响。
+    // CLIPBOARD_OPEN_PANEL / CLIPBOARD_PASTE_RECENT 已支持往返序列化（2026-07-27修复）。
     private static JSONObject serializeCommand(Command cmd) throws JSONException {
         if (cmd == null) return null;
         JSONObject obj = new JSONObject();
@@ -317,6 +318,12 @@ public class RuleLoader {
                     return obj;
                 }
                 return null;
+            case CLIPBOARD_OPEN_PANEL:
+                obj.put("type", "clipboard_open_panel");
+                return obj;
+            case CLIPBOARD_PASTE_RECENT:
+                obj.put("type", "clipboard_paste_recent");
+                return obj;
             default:
                 return null;
         }
