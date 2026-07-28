@@ -203,6 +203,36 @@ public class BuiltinComponents {
             }
         );
 
+        registry.register(
+            new ComponentDescriptor(ComponentIds.EDIT_SELECT_ALL, ComponentCategory.KEYBOARD, "全选"),
+            new ComponentFactory() {
+                @Override
+                public List<KeyModel> instantiate(ComponentContext context) {
+                    return buildSelectAll(context);
+                }
+            }
+        );
+
+        registry.register(
+            new ComponentDescriptor(ComponentIds.EDIT_COPY, ComponentCategory.KEYBOARD, "复制"),
+            new ComponentFactory() {
+                @Override
+                public List<KeyModel> instantiate(ComponentContext context) {
+                    return buildCopy(context);
+                }
+            }
+        );
+
+        registry.register(
+            new ComponentDescriptor(ComponentIds.EDIT_CUT, ComponentCategory.KEYBOARD, "剪切"),
+            new ComponentFactory() {
+                @Override
+                public List<KeyModel> instantiate(ComponentContext context) {
+                    return buildCut(context);
+                }
+            }
+        );
+
         registry.markInitialized();
     }
 
@@ -440,6 +470,33 @@ public class BuiltinComponents {
         list.add(ctrlKey("ctrlz_" + stamp, "^Z", 20f, y, w, h, android.view.KeyEvent.KEYCODE_Z));
         list.add(ctrlKey("ctrlw_" + stamp, "^W", 48f, y, w, h, android.view.KeyEvent.KEYCODE_W));
         list.add(ctrlKey("ctrly_" + stamp, "^Y", 72f, y, w, h, android.view.KeyEvent.KEYCODE_Y));
+        return list;
+    }
+
+    public static List<KeyModel> buildSelectAll(ComponentContext ctx) {
+        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        KeyModel key = new KeyModel("selall_" + stamp, "全选", 0, 0, 0, 0, 0, true, 40f, 45f, 18f, 10f);
+        key.tap = new KeyChordCommand(new int[]{android.view.KeyEvent.KEYCODE_A}, android.view.KeyEvent.META_CTRL_ON);
+        list.add(key);
+        return list;
+    }
+
+    public static List<KeyModel> buildCopy(ComponentContext ctx) {
+        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        KeyModel key = new KeyModel("copy_" + stamp, "复制", 0, 0, 0, 0, 0, true, 40f, 45f, 18f, 10f);
+        key.tap = new KeyChordCommand(new int[]{android.view.KeyEvent.KEYCODE_C}, android.view.KeyEvent.META_CTRL_ON);
+        list.add(key);
+        return list;
+    }
+
+    public static List<KeyModel> buildCut(ComponentContext ctx) {
+        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        KeyModel key = new KeyModel("cut_" + stamp, "剪切", 0, 0, 0, 0, 0, true, 40f, 45f, 18f, 10f);
+        key.tap = new KeyChordCommand(new int[]{android.view.KeyEvent.KEYCODE_X}, android.view.KeyEvent.META_CTRL_ON);
+        list.add(key);
         return list;
     }
 }

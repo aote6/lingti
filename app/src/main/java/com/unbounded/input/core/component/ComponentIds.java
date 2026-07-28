@@ -29,4 +29,8 @@ public final class ComponentIds {
 
     // 新增 - Ctrl组合键扩展
     public static final String CTRL_EXTRA = "ctrl_extra";
+
+    public static final String EDIT_SELECT_ALL = "edit_select_all";
+    public static final String EDIT_COPY = "edit_copy";
+    public static final String EDIT_CUT = "edit_cut";
 }
