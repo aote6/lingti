@@ -50,4 +50,7 @@ $BUILD_TOOLS/apksigner sign \
 
 echo ""
 echo "=== 构建完成 ==="
+echo "=== 构建完成 ==="
 echo "APK: $BUILD_DIR/unbounded-mvp.apk"
+cp "$BUILD_DIR/unbounded-mvp.apk" "$HOME/storage/downloads/unbounded-mvp.apk"
+echo "已复制到 ~/storage/downloads/unbounded-mvp.apk"
