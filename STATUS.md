@@ -373,3 +373,25 @@ build_simple.sh 无需改动（Java 7 编译通过）
 ### 编译产物
 - 路径：~/storage/downloads/unbounded-mvp.apk
 - 3个固定 warning（未使用变量），不影响功能
+
+
+## 2026-07-28 组件库补全
+
+### 新增组件
+- 符号类：括号全套 `( ) [ ] { } < >`、标点符号 `, . ; : ' " ! ?`、运算符 `+ - * / = % ^ & ~`、特殊符号 `` ` @ # $ _ \ | ``
+- 真键盘类：Tab、Delete、Insert、Home/End、PageUp/PageDown
+- Ctrl 组合键：^C ^D ^L ^R（常用）、^A ^E ^U ^K（编辑）、^Z ^W ^Y（扩展）
+- 剪贴板+回车从 SYMBOL 重新归类到 KEYBOARD
+
+### 删除
+- Fn 测试键（无实际用途）
+
+### 当前分类结构
+- BASE（10）：QWERTY 整套
+- DIGIT（20）：数字 0-9
+- DIRECTION（30）：四方向键组
+- SYMBOL（40）：括号对、括号全套、标点符号、运算符、特殊符号
+- KEYBOARD（50）：剪贴板+回车、Esc、Tab、Delete、Insert、Home/End、PageUp/PageDown、Ctrl常用四键、Ctrl编辑四键、Ctrl扩展三键
+
+### 编译状态
+- ecj：零 warning，零 error
