@@ -1,5 +1,6 @@
-// 插入文本命令：commitText到InputConnection
-package com.unbounded.input;
+package com.unbounded.input.core.command;
+
+import com.unbounded.input.Command;
 
 public class InsertText extends Command {
     public InsertText(String text) {

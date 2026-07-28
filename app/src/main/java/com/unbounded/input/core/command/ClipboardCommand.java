@@ -1,5 +1,6 @@
-// 剪贴板命令：粘贴最新项或打开剪贴板面板
-package com.unbounded.input;
+package com.unbounded.input.core.command;
+
+import com.unbounded.input.Command;
 
 public class ClipboardCommand extends Command {
     public ClipboardCommand(Type type) {

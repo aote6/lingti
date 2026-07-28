@@ -1,5 +1,6 @@
-// 提交命令：finishComposingText()，结束输入法组合状态
-package com.unbounded.input;
+package com.unbounded.input.core.command;
+
+import com.unbounded.input.Command;
 
 public class Commit extends Command {
     public Commit() {
