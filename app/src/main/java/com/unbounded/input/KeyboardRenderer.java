@@ -15,9 +15,6 @@ public class KeyboardRenderer {
 
     public void drawKeyboard(Canvas canvas, LayoutProfile profile, float barHeight,
                              KeyModel activeKey, boolean isLongPressed) {
-        int w = canvas.getWidth();
-        int h = canvas.getHeight();
-
         // 模式标签
         Paint labelPaint = ThemeTokens.newTextPaint();
         labelPaint.setTextSize(24f);

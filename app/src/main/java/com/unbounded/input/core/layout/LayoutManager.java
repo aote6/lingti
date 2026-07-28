@@ -6,13 +6,11 @@ import android.util.Log;
 public class LayoutManager {
     private static final String TAG = "LayoutManager";
 
-    private KeyboardLayout currentLayout;
     private LayoutProfile currentProfile;
     private float candidateBarHeight;
     private int viewWidth, viewHeight;
 
     public void setLayout(KeyboardLayout layout, int width, int height) {
-        this.currentLayout = layout;
         this.viewWidth = width;
         this.viewHeight = height;
         this.currentProfile = layout.build();
