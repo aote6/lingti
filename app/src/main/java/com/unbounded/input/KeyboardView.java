@@ -38,11 +38,12 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     private Rect restoreButtonRect = new Rect();
     private Rect trashZoneRect = new Rect();
     private Rect[] slotButtonRects = new Rect[3];
+    private Rect foldButtonRect = new Rect();
     private boolean componentPanelOpen = false;
     private boolean justOpenedComponentPanel = false;
     private Rect componentButtonRect = new Rect();
     private Rect componentPanelBg = new Rect();
-    private static final String[] TEMPLATE_NAMES = {"方向键组", "剪贴板+回车"};
+    private static final String[] TEMPLATE_NAMES = {"方向键组", "剪贴板+回车", "Fn 测试键"};
     private Rect[] templateItemRects = new Rect[TEMPLATE_NAMES.length];
     private final String layoutFileName;
     private final String layoutStateName;
@@ -106,27 +107,37 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        controlBarHeight = 36 * dpScale;
+        int gap = Math.round(4 * dpScale);
+        int topPad = Math.round(3 * dpScale);
+        int rowH = Math.round(30 * dpScale);
+        // 工具栏固定预留两行高度，不论是否处于编辑模式，避免进出编辑模式时键盘区域跳动。
+        controlBarHeight = topPad * 2 + rowH * 2 + gap;
         candidateBarHeight = controlBarHeight;
         layoutManager.setCandidateBarHeight(candidateBarHeight);
         layoutManager.setSize(w, h);
 
-        int btnH = Math.round(controlBarHeight - 6 * dpScale);
         int btnW = Math.round(48 * dpScale);
-        int gap = Math.round(4 * dpScale);
-        int topY = Math.round(3 * dpScale);
+        int row1Y = topPad;
+        int row2Y = topPad + rowH + gap;
         int rightX = w - Math.round(6 * dpScale);
-        editButtonRect.set(rightX - btnW, topY, rightX, topY + btnH);
-        saveButtonRect.set(rightX - btnW * 2 - gap, topY, rightX - btnW - gap, topY + btnH);
-        restoreButtonRect.set(rightX - btnW * 3 - gap * 2, topY, rightX - btnW * 2 - gap * 2, topY + btnH);
-        componentButtonRect.set(rightX - btnW * 4 - gap * 3, topY, rightX - btnW * 3 - gap * 3, topY + btnH);
+
+        // 第一行：永远显示，位置固定。左侧 折叠+槽位1/2/3，右侧 编辑/退出。
+        editButtonRect.set(rightX - btnW, row1Y, rightX, row1Y + rowH);
 
         int slotBtnW = Math.round(36 * dpScale);
+        int foldBtnW = Math.round(36 * dpScale);
         int leftX = Math.round(6 * dpScale);
+        foldButtonRect.set(leftX, row1Y, leftX + foldBtnW, row1Y + rowH);
+        int slotStartX = leftX + foldBtnW + gap;
         for (int i = 0; i < slotButtonRects.length; i++) {
-            int sx = leftX + i * (slotBtnW + gap);
-            slotButtonRects[i].set(sx, topY, sx + slotBtnW, topY + btnH);
+            int sx = slotStartX + i * (slotBtnW + gap);
+            slotButtonRects[i].set(sx, row1Y, sx + slotBtnW, row1Y + rowH);
         }
+
+        // 第二行：只在编辑模式下显示，组件/还原/保存，靠右对齐。
+        saveButtonRect.set(rightX - btnW, row2Y, rightX, row2Y + rowH);
+        restoreButtonRect.set(rightX - btnW * 2 - gap, row2Y, rightX - btnW - gap, row2Y + rowH);
+        componentButtonRect.set(rightX - btnW * 3 - gap * 2, row2Y, rightX - btnW * 2 - gap * 2, row2Y + rowH);
 
         // 删除区：屏幕最下方一条横带，编辑模式下才显示和生效。
         trashZoneHeight = 40 * dpScale;
@@ -148,15 +159,16 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         renderer.drawKeyboard(canvas, profile, candidateBarHeight,
                 gestureController.getActiveKey(), gestureController.isLongPressed());
         if (clipboardPanelOpen) {
-            renderer.drawClipboardPopup(canvas, com.unbounded.input.SimpleImeService.getClipboardHistory());
+            renderer.drawClipboardPopup(canvas, com.unbounded.input.SimpleImeService.getClipboardHistory(), activeSlot);
+        } else {
+            drawSlotButtons(canvas);
+            drawEditControls(canvas);
+            if (editMode) {
+                drawTrashZone(canvas);
+                drawResizeHandles(canvas);
+            }
+            if (componentPanelOpen) drawComponentPanel(canvas);
         }
-        drawSlotButtons(canvas);
-        drawEditControls(canvas);
-        if (editMode) {
-            drawTrashZone(canvas);
-            drawResizeHandles(canvas);
-        }
-        if (componentPanelOpen) drawComponentPanel(canvas);
         drawFlashMessage(canvas);
     }
 
@@ -195,6 +207,12 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         border.setColor(ThemeTokens.BORDER);
         Paint text = ThemeTokens.newTextPaint();
         text.setTextSize(14f);
+
+        bg.setColor(ThemeTokens.SURFACE);
+        canvas.drawRect(foldButtonRect, bg);
+        canvas.drawRect(foldButtonRect, border);
+        text.setColor(ThemeTokens.TEXT_PRIMARY);
+        drawCenteredText(canvas, foldButtonRect, "v", text);
 
         for (int i = 0; i < slotButtonRects.length; i++) {
             int slotNum = i + 1;
@@ -347,6 +365,10 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         }
 
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (foldButtonRect.contains(x, y)) {
+                if (imeService != null) imeService.collapseKeyboard();
+                return true;
+            }
             if (editMode && componentButtonRect.contains(x, y)) {
                 componentPanelOpen = true;
                 justOpenedComponentPanel = true;
@@ -469,12 +491,14 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         LayoutProfile profile = layoutManager.getProfile();
         com.unbounded.input.core.layout.RowSpec newRow = new com.unbounded.input.core.layout.RowSpec();
         long stamp = System.currentTimeMillis();
+        String msg;
         if (idx == 0) {
             newRow.add(dirKey("dir_up_" + stamp, "↑", 42f, 40f, android.view.KeyEvent.KEYCODE_DPAD_UP));
             newRow.add(dirKey("dir_down_" + stamp, "↓", 42f, 58f, android.view.KeyEvent.KEYCODE_DPAD_DOWN));
             newRow.add(dirKey("dir_left_" + stamp, "←", 30f, 49f, android.view.KeyEvent.KEYCODE_DPAD_LEFT));
             newRow.add(dirKey("dir_right_" + stamp, "→", 54f, 49f, android.view.KeyEvent.KEYCODE_DPAD_RIGHT));
-        } else {
+            msg = "已添加方向键组，可拖拽调整位置";
+        } else if (idx == 1) {
             KeyModel pasteKey = new KeyModel("paste_" + stamp, "粘贴", 0, 0, 0, 0, 0,
                     true, 30f, 45f, 16f, 10f);
             pasteKey.tap = Command.clipboardOpenPanel();
@@ -483,11 +507,18 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
             enterKey.tap = com.unbounded.input.core.command.KeyEventCommand.of(android.view.KeyEvent.KEYCODE_ENTER);
             newRow.add(pasteKey);
             newRow.add(enterKey);
+            msg = "已添加剪贴板+回车组合，可拖拽调整位置";
+        } else {
+            KeyModel fnKey = new KeyModel("fn_" + stamp, "Fn", 0, 0, 0, 0, 0,
+                    true, 40f, 45f, 14f, 10f);
+            fnKey.tap = Command.insert("[Fn]");
+            newRow.add(fnKey);
+            msg = "已添加 Fn 测试键，可拖拽调整位置";
         }
         profile.addRow(newRow);
         gestureController.updateKeys(profile.allKeys());
         layoutManager.computeRects();
-        showFlash(idx == 0 ? "已添加方向键组，可拖拽调整位置" : "已添加剪贴板+回车组合，可拖拽调整位置");
+        showFlash(msg);
         invalidate();
     }
 

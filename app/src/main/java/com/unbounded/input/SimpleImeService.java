@@ -40,9 +40,11 @@ public class SimpleImeService extends InputMethodService {
     public static class ClipboardEntry {
         public String text;
         public boolean pinned;
-        public ClipboardEntry(String text, boolean pinned) {
+        public int slotOwner;
+        public ClipboardEntry(String text, boolean pinned, int slotOwner) {
             this.text = text;
             this.pinned = pinned;
+            this.slotOwner = slotOwner;
         }
     }
 
@@ -92,7 +94,7 @@ public class SimpleImeService extends InputMethodService {
                         String text = clip.getItemAt(0).getText().toString();
                         String lastText = clipboardHistory.isEmpty() ? "" : clipboardHistory.get(clipboardHistory.size() - 1).text;
                         if (text != null && !text.isEmpty() && !text.equals(lastText)) {
-                            clipboardHistory.add(new ClipboardEntry(text, false));
+                            clipboardHistory.add(new ClipboardEntry(text, false, getActiveSlot()));
                             if (clipboardHistory.size() > MAX_CLIPBOARD_HISTORY) {
                                 int removeIdx = 0;
                                 while (removeIdx < clipboardHistory.size() && clipboardHistory.get(removeIdx).pinned) {
@@ -104,6 +106,7 @@ public class SimpleImeService extends InputMethodService {
                             }
                         }
                     }
+                    keyboardView.invalidate();
                 }
             });
         }
@@ -178,6 +181,10 @@ public class SimpleImeService extends InputMethodService {
     @Override
     public boolean onEvaluateInputViewShown() { return true; }
 
+    public void collapseKeyboard() {
+        requestHideSelf(0);
+    }
+
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
@@ -205,9 +212,6 @@ public class SimpleImeService extends InputMethodService {
         KeyboardActionDispatcher dispatcher = new KeyboardActionDispatcher() {
             @Override
             public void onCommand(Command cmd) {
-                if (keyboardView != null) {
-                    keyboardView.showDiagFlash("cmd=" + (cmd == null ? "null" : cmd.type));
-                }
                 if (cmd != null && cmd.type == Command.Type.CLIPBOARD_OPEN_PANEL) {
                     if (keyboardView != null) keyboardView.openClipboardPanel();
                     return;

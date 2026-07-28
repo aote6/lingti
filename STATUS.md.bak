@@ -217,27 +217,6 @@ Touch → GestureRecognizer → KeyboardGestureController → Command → InputE
 - **诊断用 `showDiagFlash` 仍留在代码里**：每次按键弹提示，等剪贴板序列化 bug 修完后一并清理。
 
 
-## 2026-07-27 剪贴板面板 UI 重构
-
-**背景**：剪贴板面板原来的设计是：倒序显示最近若干条，点击任意条目粘贴并自动关闭面板。用户需要更精细的控制：固定常用条目、删除无用条目、连续粘贴多条不关闭面板。
-
-**改动内容**：
-- 底层数据结构升级：`clipboardHistory` 从 `List<String>` 改为 `List<ClipboardEntry>`，每个条目包含 `text` 和 `pinned` 字段
-- 存储顺序不变（老→新），显示逻辑改变：
-  - 固定记录（pinned=true）排在最上面，按原顺序排列
-  - 普通记录只显示最近若干条，按复制顺序（老→新）排列
-- 面板顶部常驻「退出」按钮，点击关闭面板
-- 每行右侧两个按钮：「固定/取消」、「删除」
-- 点击文字区域 = 粘贴且不关闭面板，支持连续点击多条
-
-**修改文件**：
-- `SimpleImeService.java`：新增 `ClipboardEntry` 内部类，`toggleClipboardPin()` / `deleteClipboardItem()` 静态方法
-- `KeyboardRenderer.java`：新增 `ClipboardHit` 内部类，重写 `drawClipboardPopup()` 和 `hitTestClipboard()`
-- `KeyboardView.java`：更新触摸事件处理逻辑，支持多种点击动作
-- `KeyboardGestureController.java`：适配新的 `getClipboardHistory()` 返回类型
-
-**待优化**：按钮宽度使用固定像素值，未按 dp 缩放。等实机测试后根据用户反馈调整。
-
 ## 2026-07-27 剪贴板类型命令序列化bug最终修复
 
 **背景**：2026-07-20会话发现并确诊了根因（RuleLoader.parseCommand()/serializeCommand()不认识CLIPBOARD_OPEN_PANEL/CLIPBOARD_PASTE_RECENT类型），但当时只写了诊断代码和交接记录，没有真正动手改RuleLoader.java。2026-07-27下午先做了PasteManager限速粘贴（另一个独立问题：PTY大段粘贴丢字符），处理完之后误以为顺手也把这个序列化bug修了，实际上当天全部8条写操作都没碰过RuleLoader.java——通过`rz lingti`操作日志核实确认。当天晚些时候重新定位、真正修复。
@@ -252,25 +231,3 @@ Touch → GestureRecognizer → KeyboardGestureController → Command → InputE
 **诊断代码现状**：`SimpleImeService`里的`showDiagFlash`临时诊断调用**保留不删**——用户认为闪一下就消失，不影响使用，且调试阶段有用，以后有需要再决定是否移除。
 
 **排查过程的教训（写给以后的会话）**：确诊根因和真正落地修复之间隔了一周，中间又被另一个问题（PasteManager）插队，导致"以为修过"和"实际修过"出现偏差。以后如果STATUS.md里记录"已确诊根因"但没有明确的commit记录对应这次修复，新会话开始时应该主动用`git log`或`rz`日志核实一遍，不要假设"记录过就等于做过"。
-
-## 2026-07-28 本轮会话总结
-
-本轮排查并修复了一批"功能能用但设计粗糙"的界面细节问题，都是实机截图反馈驱动的：
-
-1. **工具栏改两行布局**：之前编辑模式下"组件/还原/保存"会跟第一行的槽位1/2/3、编辑/退出挤在同一行导致重叠。现在固定拆成两行：第一行（v折叠 + 槽位1/2/3 + 编辑/退出）永远显示、位置固定不随编辑模式变化；第二行（组件/还原/保存）只在编辑模式下才出现。`controlBarHeight`固定预留两行高度，避免进出编辑模式时键盘区域跳动。
-2. **剪贴板面板打开时隐藏工具栏**：之前这个分支被中途某次改动覆盖丢失过一次，这次重新确认并补上，`onDraw()`里`clipboardPanelOpen`为true时改用`else`分支跳过`drawSlotButtons`/`drawEditControls`等，只画剪贴板自己的退出/固定/删除按钮。
-3. **剪贴板按输入法槽位隔离**：`ClipboardEntry`新增`slotOwner`字段，复制内容时打上当前槽位号；`drawClipboardPopup()`按`currentSlot`过滤，槽位1的复制/固定内容只在槽位1的剪贴板里可见，槽位间互不干扰。
-4. **固定项视觉样式调整**：改了两版。第一版把整行背景染绿反而更难看清文字；最终版保留正常背景色，只把固定项文字换成琥珀黄（`0xFFFFC107`）+ 星号前缀，观感区分明显且不刺眼。
-5. **新增折叠按钮**：工具栏第一行左侧加"v"按钮，调用`InputMethodService.requestHideSelf()`收起键盘，点输入框会正常触发`onStartInputView`弹回。
-6. **删除诊断代码**：`SimpleImeService`里排查剪贴板序列化bug时加的`showDiagFlash`调用点已移除，`KeyboardView.showDiagFlash()`方法本身保留作为以后调试用的通用接口。
-7. **Fn测试键改为组件**：不再写死在`default.json`里，改为组件库第三个模板"Fn 测试键"，跟"方向键组""剪贴板+回车"一样按需拖出。
-8. **`default.json`清空为空白布局**：呼应"打开灵体应该先选组件，不是默认塞给26键"的产品方向。三个槽位现在打开都是完全空白+工具栏，需要在编辑模式里通过组件库手动拖入按键组。**这意味着组件库补上"单个字母键/整套QWERTY"模板之前，槽位暂时无法直接打字**，这是本轮改动的已知直接后果，不是bug。
-
-以上8项均已实机截图确认无误。
-
-**下一步待办（未开始）**：
-- 组件库v2：改成分类文字列表（方向键类/数字类/符号类/真键盘类等），支持成组拖出（比如复制+粘贴算一组、数字0-9算一组），参考用户提供的其他输入法（Gboard/Unexpected等）在真键盘布局上的经验，取代现在预先画好的图形按钮悬浮面板。
-- 组件库需要补上能拖出单个字母键或整套QWERTY的模板，否则清空后的槽位打不了字。
-- 单独点选删除键（现在只能拖进底部删除区）。
-- 两套并存的剪贴板逻辑（`execGesture()`里写死的"📋".equals(activeKey.label)判断 vs 新的`CLIPBOARD_OPEN_PANEL`面板式）尚未合并，值得考虑统一。
-
