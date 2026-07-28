@@ -8,7 +8,11 @@ import android.graphics.Rect;
 import android.view.MotionEvent;
 import android.view.View;
 import java.util.List;
+import java.util.ArrayList;
 
+import com.unbounded.input.core.component.ComponentContext;
+import com.unbounded.input.core.component.ComponentDescriptor;
+import com.unbounded.input.core.component.ComponentRegistry;
 import com.unbounded.input.core.layout.KeyModel;
 import com.unbounded.input.core.layout.KeyboardLayout;
 import com.unbounded.input.core.layout.LayoutManager;
@@ -43,8 +47,10 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     private boolean justOpenedComponentPanel = false;
     private Rect componentButtonRect = new Rect();
     private Rect componentPanelBg = new Rect();
-    private static final String[] TEMPLATE_NAMES = {"方向键组", "剪贴板+回车", "Fn 测试键"};
-    private Rect[] templateItemRects = new Rect[TEMPLATE_NAMES.length];
+    private int expandedGroupIdx = -1;
+    private final List<ComponentGroup> componentGroups = new ArrayList<ComponentGroup>();
+    private final List<PanelEntry> panelEntries = new ArrayList<PanelEntry>();
+    private final List<Rect> panelEntryRects = new ArrayList<Rect>();
     private final String layoutFileName;
     private final String layoutStateName;
     private final Runnable onRestore;
@@ -76,7 +82,6 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         }, getWidth(), getHeight());
         gestureController = new KeyboardGestureController(allKeys, dispatcher, this);
         for (int i = 0; i < slotButtonRects.length; i++) slotButtonRects[i] = new Rect();
-        for (int i = 0; i < templateItemRects.length; i++) templateItemRects[i] = new Rect();
     }
 
     public float getDpScale() { return dpScale; }
@@ -110,7 +115,6 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         int gap = Math.round(4 * dpScale);
         int topPad = Math.round(3 * dpScale);
         int rowH = Math.round(30 * dpScale);
-        // 工具栏固定预留两行高度，不论是否处于编辑模式，避免进出编辑模式时键盘区域跳动。
         controlBarHeight = topPad * 2 + rowH * 2 + gap;
         candidateBarHeight = controlBarHeight;
         layoutManager.setCandidateBarHeight(candidateBarHeight);
@@ -121,7 +125,6 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         int row2Y = topPad + rowH + gap;
         int rightX = w - Math.round(6 * dpScale);
 
-        // 第一行：永远显示，位置固定。左侧 折叠+槽位1/2/3，右侧 编辑/退出。
         editButtonRect.set(rightX - btnW, row1Y, rightX, row1Y + rowH);
 
         int slotBtnW = Math.round(36 * dpScale);
@@ -134,23 +137,15 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
             slotButtonRects[i].set(sx, row1Y, sx + slotBtnW, row1Y + rowH);
         }
 
-        // 第二行：只在编辑模式下显示，组件/还原/保存，靠右对齐。
         saveButtonRect.set(rightX - btnW, row2Y, rightX, row2Y + rowH);
         restoreButtonRect.set(rightX - btnW * 2 - gap, row2Y, rightX - btnW - gap, row2Y + rowH);
         componentButtonRect.set(rightX - btnW * 3 - gap * 2, row2Y, rightX - btnW * 2 - gap * 2, row2Y + rowH);
 
-        // 删除区：屏幕最下方一条横带，编辑模式下才显示和生效。
         trashZoneHeight = 40 * dpScale;
         trashZoneRect.set(0, h - Math.round(trashZoneHeight), w, h);
 
-        int panelW = Math.round(180 * dpScale);
-        int itemH = Math.round(40 * dpScale);
-        int panelX = (w - panelW) / 2;
-        int panelY = Math.round(controlBarHeight + 8 * dpScale);
-        componentPanelBg.set(panelX, panelY, panelX + panelW, panelY + itemH * TEMPLATE_NAMES.length);
-        for (int i = 0; i < templateItemRects.length; i++) {
-            templateItemRects[i].set(panelX, panelY + i * itemH, panelX + panelW, panelY + (i + 1) * itemH);
-        }
+        rebuildComponentPanelEntries();
+        layoutComponentPanelRects();
     }
 
     @Override
@@ -266,9 +261,9 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         Paint text = ThemeTokens.newTextPaint();
         text.setTextSize(14f);
         text.setColor(ThemeTokens.TEXT_PRIMARY);
-        for (int i = 0; i < templateItemRects.length; i++) {
-            canvas.drawRect(templateItemRects[i], border);
-            drawCenteredText(canvas, templateItemRects[i], TEMPLATE_NAMES[i], text);
+        for (int i = 0; i < panelEntries.size(); i++) {
+            canvas.drawRect(panelEntryRects.get(i), border);
+            drawCenteredText(canvas, panelEntryRects.get(i), panelEntries.get(i).text, text);
         }
     }
 
@@ -351,13 +346,23 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
                 if (justOpenedComponentPanel) {
                     justOpenedComponentPanel = false;
                 } else {
-                    for (int i = 0; i < templateItemRects.length; i++) {
-                        if (templateItemRects[i].contains(x, y)) {
-                            instantiateTemplate(i);
+                    for (int i = 0; i < panelEntryRects.size(); i++) {
+                        if (panelEntryRects.get(i).contains(x, y)) {
+                            PanelEntry hit = panelEntries.get(i);
+                            if (hit.itemIdx == -1) {
+                                expandedGroupIdx = (expandedGroupIdx == hit.groupIdx) ? -1 : hit.groupIdx;
+                                rebuildComponentPanelEntries();
+                                layoutComponentPanelRects();
+                            } else {
+                                ComponentGroup grp = componentGroups.get(hit.groupIdx);
+                                ComponentDescriptor desc = grp.items[hit.itemIdx];
+                                instantiateComponent(desc.getId());
+                                componentPanelOpen = false;
+                                expandedGroupIdx = -1;
+                            }
                             break;
                         }
                     }
-                    componentPanelOpen = false;
                 }
                 invalidate();
             }
@@ -487,44 +492,179 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         return x >= left && x <= key.rect.right && y >= top && y <= key.rect.bottom;
     }
 
-    private void instantiateTemplate(int idx) {
+    private void instantiateComponent(String componentId) {
         LayoutProfile profile = layoutManager.getProfile();
         com.unbounded.input.core.layout.RowSpec newRow = new com.unbounded.input.core.layout.RowSpec();
         long stamp = System.currentTimeMillis();
-        String msg;
-        if (idx == 0) {
-            newRow.add(dirKey("dir_up_" + stamp, "↑", 42f, 40f, android.view.KeyEvent.KEYCODE_DPAD_UP));
-            newRow.add(dirKey("dir_down_" + stamp, "↓", 42f, 58f, android.view.KeyEvent.KEYCODE_DPAD_DOWN));
-            newRow.add(dirKey("dir_left_" + stamp, "←", 30f, 49f, android.view.KeyEvent.KEYCODE_DPAD_LEFT));
-            newRow.add(dirKey("dir_right_" + stamp, "→", 54f, 49f, android.view.KeyEvent.KEYCODE_DPAD_RIGHT));
-            msg = "已添加方向键组，可拖拽调整位置";
-        } else if (idx == 1) {
-            KeyModel pasteKey = new KeyModel("paste_" + stamp, "粘贴", 0, 0, 0, 0, 0,
-                    true, 30f, 45f, 16f, 10f);
-            pasteKey.tap = Command.clipboardOpenPanel();
-            KeyModel enterKey = new KeyModel("enter_" + stamp, "回车", 0, 0, 0, 0, 0,
-                    true, 48f, 45f, 16f, 10f);
-            enterKey.tap = com.unbounded.input.core.command.KeyEventCommand.of(android.view.KeyEvent.KEYCODE_ENTER);
-            newRow.add(pasteKey);
-            newRow.add(enterKey);
-            msg = "已添加剪贴板+回车组合，可拖拽调整位置";
-        } else {
-            KeyModel fnKey = new KeyModel("fn_" + stamp, "Fn", 0, 0, 0, 0, 0,
-                    true, 40f, 45f, 14f, 10f);
-            fnKey.tap = Command.insert("[Fn]");
-            newRow.add(fnKey);
-            msg = "已添加 Fn 测试键，可拖拽调整位置";
-        }
+        ComponentContext ctx = new ComponentContext(stamp);
+        List<KeyModel> keys = ComponentRegistry.getInstance().instantiate(componentId, ctx);
+        for (KeyModel k : keys) newRow.add(k);
         profile.addRow(newRow);
         gestureController.updateKeys(profile.allKeys());
         layoutManager.computeRects();
-        showFlash(msg);
+        showFlash("已添加：" + componentId);
         invalidate();
     }
 
-    private KeyModel dirKey(String id, String label, float x, float y, int keyCode) {
+    private static KeyModel dirKey(String id, String label, float x, float y, int keyCode) {
         KeyModel k = new KeyModel(id, label, 0, 0, 0, 0, 0, true, x, y, 12f, 9f);
         k.tap = com.unbounded.input.core.command.KeyEventCommand.of(keyCode);
         return k;
+    }
+
+    private static KeyModel charKey(String id, char c, float x, float y, float w, float h) {
+        KeyModel k = new KeyModel(id, String.valueOf(c), 0, 0, 0, 0, 0, true, x, y, w, h);
+        k.tap = Command.insert(String.valueOf(c));
+        return k;
+    }
+
+    public static List<KeyModel> buildQwerty(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        String row1 = "qwertyuiop", row2 = "asdfghjkl", row3 = "zxcvbnm";
+        float w = 9.6f, h = 12f;
+        float y1 = 38f, y2 = 51f, y3 = 64f, y4 = 77f;
+        long stamp = ctx.stamp;
+        for (int i = 0; i < row1.length(); i++)
+            list.add(charKey("q1_" + i + "_" + stamp, row1.charAt(i), 2f + i * w, y1, w - 0.5f, h));
+        for (int i = 0; i < row2.length(); i++)
+            list.add(charKey("q2_" + i + "_" + stamp, row2.charAt(i), 2f + w / 2 + i * w, y2, w - 0.5f, h));
+        for (int i = 0; i < row3.length(); i++)
+            list.add(charKey("q3_" + i + "_" + stamp, row3.charAt(i), 2f + w * 1.5f + i * w, y3, w - 0.5f, h));
+        KeyModel space = new KeyModel("q_space_" + stamp, "空格", 0, 0, 0, 0, 0, true, 20f, y4, 60f, h);
+        space.tap = Command.space();
+        list.add(space);
+        KeyModel back = new KeyModel("q_back_" + stamp, "退格", 0, 0, 0, 0, 0, true, 82f, y4, 16f, h);
+        back.tap = Command.backspace();
+        list.add(back);
+        return list;
+    }
+
+    public static List<KeyModel> buildDigits(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        String digits = "1234567890";
+        float w = 9.6f, h = 12f, y = 45f;
+        long stamp = ctx.stamp;
+        for (int i = 0; i < digits.length(); i++)
+            list.add(charKey("digit_" + i + "_" + stamp, digits.charAt(i), 2f + i * w, y, w - 0.5f, h));
+        return list;
+    }
+
+    public static List<KeyModel> buildDirectionGroup(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        list.add(dirKey("dir_up_" + stamp, "\u2191", 42f, 40f, android.view.KeyEvent.KEYCODE_DPAD_UP));
+        list.add(dirKey("dir_down_" + stamp, "\u2193", 42f, 58f, android.view.KeyEvent.KEYCODE_DPAD_DOWN));
+        list.add(dirKey("dir_left_" + stamp, "\u2190", 30f, 49f, android.view.KeyEvent.KEYCODE_DPAD_LEFT));
+        list.add(dirKey("dir_right_" + stamp, "\u2192", 54f, 49f, android.view.KeyEvent.KEYCODE_DPAD_RIGHT));
+        return list;
+    }
+
+    public static List<KeyModel> buildClipboardEnter(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        KeyModel pasteKey = new KeyModel("paste_" + stamp, "\u7c98\u8d34", 0, 0, 0, 0, 0, true, 30f, 45f, 16f, 10f);
+        pasteKey.tap = Command.clipboardOpenPanel();
+        KeyModel enterKey = new KeyModel("enter_" + stamp, "\u56de\u8f66", 0, 0, 0, 0, 0, true, 48f, 45f, 16f, 10f);
+        enterKey.tap = com.unbounded.input.core.command.KeyEventCommand.of(android.view.KeyEvent.KEYCODE_ENTER);
+        list.add(pasteKey);
+        list.add(enterKey);
+        return list;
+    }
+
+    public static List<KeyModel> buildBrackets(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        list.add(charKey("br_open_" + stamp, '(', 35f, 45f, 12f, 10f));
+        list.add(charKey("br_close_" + stamp, ')', 47f, 45f, 12f, 10f));
+        return list;
+    }
+
+    public static List<KeyModel> buildFnTest(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        KeyModel fnKey = new KeyModel("fn_" + stamp, "Fn", 0, 0, 0, 0, 0, true, 40f, 45f, 14f, 10f);
+        fnKey.tap = Command.insert("[Fn]");
+        list.add(fnKey);
+        return list;
+    }
+
+    public static List<KeyModel> buildEsc(ComponentContext ctx) {
+        List<KeyModel> list = new ArrayList<KeyModel>();
+        long stamp = ctx.stamp;
+        KeyModel escKey = new KeyModel("esc_" + stamp, "Esc", 0, 0, 0, 0, 0, true, 40f, 45f, 14f, 10f);
+        escKey.tap = com.unbounded.input.core.command.KeyEventCommand.of(android.view.KeyEvent.KEYCODE_ESCAPE);
+        list.add(escKey);
+        return list;
+    }
+
+    private static class ComponentGroup {
+        final String category;
+        final ComponentDescriptor[] items;
+        ComponentGroup(String category, ComponentDescriptor[] items) {
+            this.category = category;
+            this.items = items;
+        }
+    }
+
+    private static class PanelEntry {
+        final int groupIdx;
+        final int itemIdx;
+        final String text;
+        PanelEntry(int groupIdx, int itemIdx, String text) {
+            this.groupIdx = groupIdx;
+            this.itemIdx = itemIdx;
+            this.text = text;
+        }
+    }
+
+    private void buildGroups() {
+        componentGroups.clear();
+        java.util.List<ComponentDescriptor> all = ComponentRegistry.getInstance().getAll();
+        com.unbounded.input.core.component.ComponentCategory currentCat = null;
+        java.util.List<ComponentDescriptor> currentItems = new java.util.ArrayList<ComponentDescriptor>();
+        for (ComponentDescriptor desc : all) {
+            if (currentCat != desc.getCategory()) {
+                if (currentCat != null && !currentItems.isEmpty()) {
+                    componentGroups.add(new ComponentGroup(currentCat.getDefaultLabel(),
+                            currentItems.toArray(new ComponentDescriptor[0])));
+                }
+                currentCat = desc.getCategory();
+                currentItems.clear();
+            }
+            currentItems.add(desc);
+        }
+        if (currentCat != null && !currentItems.isEmpty()) {
+            componentGroups.add(new ComponentGroup(currentCat.getDefaultLabel(),
+                    currentItems.toArray(new ComponentDescriptor[0])));
+        }
+    }
+
+    private void rebuildComponentPanelEntries() {
+        buildGroups();
+        panelEntries.clear();
+        for (int g = 0; g < componentGroups.size(); g++) {
+            ComponentGroup grp = componentGroups.get(g);
+            String arrow = (g == expandedGroupIdx) ? "v " : "> ";
+            panelEntries.add(new PanelEntry(g, -1, arrow + grp.category));
+            if (g == expandedGroupIdx) {
+                for (int it = 0; it < grp.items.length; it++) {
+                    panelEntries.add(new PanelEntry(g, it, "    " + grp.items[it].getLabel()));
+                }
+            }
+        }
+    }
+
+    private void layoutComponentPanelRects() {
+        int panelW = Math.round(200 * dpScale);
+        int itemH = Math.round(36 * dpScale);
+        int panelX = (getWidth() - panelW) / 2;
+        int panelY = Math.round(controlBarHeight + 8 * dpScale);
+        panelEntryRects.clear();
+        for (int i = 0; i < panelEntries.size(); i++) {
+            panelEntryRects.add(new Rect(panelX, panelY + i * itemH,
+                    panelX + panelW, panelY + (i + 1) * itemH));
+        }
+        int totalH = itemH * Math.max(panelEntries.size(), 1);
+        componentPanelBg.set(panelX, panelY, panelX + panelW, panelY + totalH);
     }
 }

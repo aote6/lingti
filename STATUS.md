@@ -274,3 +274,45 @@ Touch → GestureRecognizer → KeyboardGestureController → Command → InputE
 - 单独点选删除键（现在只能拖进底部删除区）。
 - 两套并存的剪贴板逻辑（`execGesture()`里写死的"📋".equals(activeKey.label)判断 vs 新的`CLIPBOARD_OPEN_PANEL`面板式）尚未合并，值得考虑统一。
 
+
+
+## 2026-07-28 组件系统架构重构
+
+背景：组件库v1（方向键组/剪贴板+回车/Fn测试键）是硬编码的三个模板，写在 KeyboardView.java 里的 TEMPLATE_NAMES 数组 + instantiateTemplate(idx) if-else 分支。每个组件的行为绑死在代码里，扩展新组件需要改 KeyboardView 主体逻辑。
+
+本轮完成的架构改动：
+
+四层组件架构：
+ComponentDescriptor（数据层：ID/Category/Label）-> ComponentRegistry（管理层：注册/查询/路由，LinkedHashMap保证顺序）-> ComponentFactory（行为层：根据Context具象化List<KeyModel>）-> List<KeyModel>（产物）
+
+新建文件（core/component/ 包）：
+ComponentIds.java - 全局组件ID常量（qwerty/digits/direction等）
+ComponentCategory.java - 组件分类枚举（字母类/数字类/方向键类/符号类/真键盘类，带sortOrder）
+ComponentDescriptor.java - 纯数据描述符DTO（id/category/label，不含任何行为引用）
+ComponentContext.java - 实例化上下文（当前仅stamp，预留扩展字段）
+ComponentFactory.java - 组件实例化接口 List<KeyModel> instantiate(ComponentContext)
+ComponentRegistry.java - 单例注册中心（LinkedHashMap保序、线程安全、按ID路由）
+BuiltinComponents.java - 内置组件注册入口，在SimpleImeService.onCreate()里调用
+
+KeyboardView.java 改动：
+删：TEMPLATE_NAMES 数组、templateItemRects 数组、ComponentBuilder 接口（旧的方法引用写法）、instantiateTemplate(int idx) if-else 分支
+改：ComponentItem 只存 id + label（从Registry动态获取）、ComponentGroup/PanelEntry 保留为UI视图模型、buildGroups() 按category分组生成组件列表、instantiateComponent(String id) 通过Registry路由
+加：7个组件的静态工厂方法（buildQwerty/buildDigits/buildDirectionGroup/buildClipboardEnter/buildBrackets/buildFnTest/buildEsc），签名统一为 (ComponentContext)
+新组件：QWERTY 整套（26键+空格+退格）、数字 0-9、四方向键组、剪贴板+回车、括号对、Fn 测试键、Esc 键
+
+架构决策：
+不用 Java 8 方法引用：KeyboardView::buildQwerty 写法在 Termux 的 ecj（硬编码 -7）下无法编译。改为纯 Java 7 匿名内部类实现 ComponentFactory，build_simple.sh 一行不改就通过。
+数据与行为分离：ComponentDescriptor 只存数据，ComponentFactory 只做实例化。后续 JSON/DSL 注册组件时，只需给 Registry 喂 Descriptor + Factory，UI 层无感。
+组件是数据，不是 Java 代码：这是本次重构的核心原则。ComponentRegistry.instantiate(id, context) 是组件实例化的唯一入口，不依赖编译期闭包。
+
+与之前版本的兼容性：
+SimpleImeService 需在 onCreate() 里加一行 BuiltinComponents.registerAll(ComponentRegistry.getInstance())（本次已完成）
+build_simple.sh 无需改动（Java 7 编译通过）
+旧的 default.json 清空策略不变，组件全部通过面板拖入
+编译验证：0 errors，3 warnings（均为历史遗留）
+
+遗留待办：
+- 组件面板改版：分类文字列表取代现在的浮动面板
+- 组件库补上单个字母键模板
+- 两套剪贴板逻辑合并
+- 单独点选删除键
