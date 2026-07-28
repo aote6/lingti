@@ -13,8 +13,6 @@ public class BuiltinComponents {
             return;
         }
 
-        // ========== BASE 字母类 ==========
-
         registry.register(
             new ComponentDescriptor(ComponentIds.QWERTY, ComponentCategory.BASE, "QWERTY 整套"),
             new ComponentFactory() {
@@ -24,8 +22,6 @@ public class BuiltinComponents {
                 }
             }
         );
-
-        // ========== DIGIT 数字类 ==========
 
         registry.register(
             new ComponentDescriptor(ComponentIds.DIGITS, ComponentCategory.DIGIT, "数字 0-9"),
@@ -37,8 +33,6 @@ public class BuiltinComponents {
             }
         );
 
-        // ========== DIRECTION 方向键类 ==========
-
         registry.register(
             new ComponentDescriptor(ComponentIds.DIRECTION, ComponentCategory.DIRECTION, "四方向键组"),
             new ComponentFactory() {
@@ -48,8 +42,6 @@ public class BuiltinComponents {
                 }
             }
         );
-
-        // ========== SYMBOL 符号类 ==========
 
         registry.register(
             new ComponentDescriptor(ComponentIds.BRACKETS, ComponentCategory.SYMBOL, "括号对"),
@@ -100,8 +92,6 @@ public class BuiltinComponents {
                 }
             }
         );
-
-        // ========== KEYBOARD 真键盘类 ==========
 
         registry.register(
             new ComponentDescriptor(ComponentIds.CLIPBOARD_ENTER, ComponentCategory.KEYBOARD, "剪贴板+回车"),
@@ -204,39 +194,17 @@ public class BuiltinComponents {
         );
 
         registry.register(
-            new ComponentDescriptor(ComponentIds.EDIT_SELECT_ALL, ComponentCategory.KEYBOARD, "全选"),
+            new ComponentDescriptor(ComponentIds.EDIT_OPS, ComponentCategory.KEYBOARD, "文本编辑操作"),
             new ComponentFactory() {
                 @Override
                 public List<KeyModel> instantiate(ComponentContext context) {
-                    return buildSelectAll(context);
-                }
-            }
-        );
-
-        registry.register(
-            new ComponentDescriptor(ComponentIds.EDIT_COPY, ComponentCategory.KEYBOARD, "复制"),
-            new ComponentFactory() {
-                @Override
-                public List<KeyModel> instantiate(ComponentContext context) {
-                    return buildCopy(context);
-                }
-            }
-        );
-
-        registry.register(
-            new ComponentDescriptor(ComponentIds.EDIT_CUT, ComponentCategory.KEYBOARD, "剪切"),
-            new ComponentFactory() {
-                @Override
-                public List<KeyModel> instantiate(ComponentContext context) {
-                    return buildCut(context);
+                    return buildEditOps(context);
                 }
             }
         );
 
         registry.markInitialized();
     }
-
-    // ==================== 辅助工厂方法 ====================
 
     private static KeyModel dirKey(String id, String label, float x, float y, int keyCode) {
         KeyModel k = new KeyModel(id, label, 0, 0, 0, 0, 0, true, x, y, 12f, 9f);
@@ -261,8 +229,6 @@ public class BuiltinComponents {
         k.tap = KeyEventCommand.of(keyCode);
         return k;
     }
-
-    // ==================== 各组件构建方法 ====================
 
     public static List<KeyModel> buildQwerty(ComponentContext ctx) {
         List<KeyModel> list = new java.util.ArrayList<KeyModel>();
@@ -338,7 +304,7 @@ public class BuiltinComponents {
         list.add(charKey("p_period_" + stamp, '.', 22f, y1, w, h));
         list.add(charKey("p_semicolon_" + stamp, ';', 39f, y1, w, h));
         list.add(charKey("p_colon_" + stamp, ':', 56f, y1, w, h));
-        list.add(charKey("p_singleq_" + stamp, '\'', 73f, y1, w, h));
+        list.add(charKey("p_singleq_" + stamp, ''', 73f, y1, w, h));
         list.add(charKey("p_doubleq_" + stamp, '"', 86f, y1, w, h));
         list.add(charKey("p_exclaim_" + stamp, '!', 5f, y2, w, h));
         list.add(charKey("p_question_" + stamp, '?', 22f, y2, w, h));
@@ -473,30 +439,14 @@ public class BuiltinComponents {
         return list;
     }
 
-    public static List<KeyModel> buildSelectAll(ComponentContext ctx) {
+    public static List<KeyModel> buildEditOps(ComponentContext ctx) {
         List<KeyModel> list = new java.util.ArrayList<KeyModel>();
         long stamp = ctx.stamp;
-        KeyModel key = new KeyModel("selall_" + stamp, "全选", 0, 0, 0, 0, 0, true, 40f, 45f, 18f, 10f);
-        key.tap = new KeyChordCommand(new int[]{android.view.KeyEvent.KEYCODE_A}, android.view.KeyEvent.META_CTRL_ON);
-        list.add(key);
-        return list;
-    }
-
-    public static List<KeyModel> buildCopy(ComponentContext ctx) {
-        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
-        long stamp = ctx.stamp;
-        KeyModel key = new KeyModel("copy_" + stamp, "复制", 0, 0, 0, 0, 0, true, 40f, 45f, 18f, 10f);
-        key.tap = new KeyChordCommand(new int[]{android.view.KeyEvent.KEYCODE_C}, android.view.KeyEvent.META_CTRL_ON);
-        list.add(key);
-        return list;
-    }
-
-    public static List<KeyModel> buildCut(ComponentContext ctx) {
-        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
-        long stamp = ctx.stamp;
-        KeyModel key = new KeyModel("cut_" + stamp, "剪切", 0, 0, 0, 0, 0, true, 40f, 45f, 18f, 10f);
-        key.tap = new KeyChordCommand(new int[]{android.view.KeyEvent.KEYCODE_X}, android.view.KeyEvent.META_CTRL_ON);
-        list.add(key);
+        float w = 20f, h = 12f, y = 45f;
+        list.add(ctrlKey("selall_" + stamp, "全选", 3f, y, w, h, android.view.KeyEvent.KEYCODE_A));
+        list.add(ctrlKey("editcopy_" + stamp, "复制", 27f, y, w, h, android.view.KeyEvent.KEYCODE_C));
+        list.add(ctrlKey("editcut_" + stamp, "剪切", 51f, y, w, h, android.view.KeyEvent.KEYCODE_X));
+        list.add(ctrlKey("editpaste_" + stamp, "粘贴", 75f, y, w, h, android.view.KeyEvent.KEYCODE_V));
         return list;
     }
 }
