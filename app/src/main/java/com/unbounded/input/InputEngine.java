@@ -30,9 +30,13 @@ public class InputEngine {
             case KEY_EVENT:
                 if (cmd instanceof KeyEventCommand) {
                     KeyEventCommand kec = (KeyEventCommand) cmd;
-                    long now = android.os.SystemClock.uptimeMillis();
-                    ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, kec.keyCode, 0, kec.metaState));
-                    ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, kec.keyCode, 0, kec.metaState));
+                    if (kec.keyCode == android.view.KeyEvent.KEYCODE_FORWARD_DEL) {
+                        deleteCharAfterCursor(ic);
+                    } else {
+                        long now = android.os.SystemClock.uptimeMillis();
+                        ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, kec.keyCode, 0, kec.metaState));
+                        ic.sendKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, kec.keyCode, 0, kec.metaState));
+                    }
                 }
                 break;
             case KEY_CHORD:
@@ -79,5 +83,14 @@ public class InputEngine {
             }
         }
         ic.deleteSurroundingText(1, 0);
+    }
+
+    private static void deleteCharAfterCursor(InputConnection ic) {
+        CharSequence selected = ic.getSelectedText(0);
+        if (selected != null && selected.length() > 0) {
+            ic.commitText("", 1);
+            return;
+        }
+        ic.deleteSurroundingText(0, 1);
     }
 }
