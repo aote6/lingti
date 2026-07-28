@@ -447,6 +447,7 @@ public class BuiltinComponents {
         list.add(ctrlKey("editcopy_" + stamp, "复制", 27f, y, w, h, android.view.KeyEvent.KEYCODE_C));
         list.add(ctrlKey("editcut_" + stamp, "剪切", 51f, y, w, h, android.view.KeyEvent.KEYCODE_X));
         list.add(ctrlKey("editpaste_" + stamp, "粘贴", 75f, y, w, h, android.view.KeyEvent.KEYCODE_V));
+        list.add(keyCodeKey("editdel_" + stamp, "删除", 40f, 60f, 20f, 12f, android.view.KeyEvent.KEYCODE_FORWARD_DEL));
         return list;
     }
 }
