@@ -2,7 +2,6 @@ package com.unbounded.input.core.component;
 
 import com.unbounded.input.Command;
 import com.unbounded.input.core.command.KeyEventCommand;
-import com.unbounded.input.core.command.KeyChordCommand;
 import com.unbounded.input.core.layout.KeyModel;
 import java.util.List;
 
@@ -83,33 +82,7 @@ public class BuiltinComponents {
             }
         );
 
-        registry.register(
-            new ComponentDescriptor(ComponentIds.CTRL_BASIC, ComponentCategory.KEYBOARD, "Ctrl 常用四键"),
-            new ComponentFactory() {
-                @Override
-                public List<KeyModel> instantiate(ComponentContext context) {
-                    return buildCtrlBasic(context);
-                }
-            }
-        );
-
-        registry.register(
-            new ComponentDescriptor(ComponentIds.CTRL_EDIT, ComponentCategory.KEYBOARD, "Ctrl 编辑四键"),
-            new ComponentFactory() {
-                @Override
-                public List<KeyModel> instantiate(ComponentContext context) {
-                    return buildCtrlEdit(context);
-                }
-            }
-        );
-
         registry.markInitialized();
-    }
-
-    private static KeyModel ctrlKey(String id, String label, float x, float y, float w, float h, int keyCode) {
-        KeyModel k = new KeyModel(id, label, 0, 0, 0, 0, 0, true, x, y, w, h);
-        k.tap = new KeyChordCommand(new int[]{keyCode}, android.view.KeyEvent.META_CTRL_ON);
-        return k;
     }
 
     private static KeyModel dirKey(String id, String label, float x, float y, int keyCode) {
@@ -200,28 +173,6 @@ public class BuiltinComponents {
         KeyModel escKey = new KeyModel("esc_" + stamp, "Esc", 0, 0, 0, 0, 0, true, 40f, 45f, 14f, 10f);
         escKey.tap = KeyEventCommand.of(android.view.KeyEvent.KEYCODE_ESCAPE);
         list.add(escKey);
-        return list;
-    }
-
-    public static List<KeyModel> buildCtrlBasic(ComponentContext ctx) {
-        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
-        long stamp = ctx.stamp;
-        float w = 20f, h = 12f, y = 45f;
-        list.add(ctrlKey("ctrlc_" + stamp, "^C", 3f, y, w, h, android.view.KeyEvent.KEYCODE_C));
-        list.add(ctrlKey("ctrld_" + stamp, "^D", 27f, y, w, h, android.view.KeyEvent.KEYCODE_D));
-        list.add(ctrlKey("ctrll_" + stamp, "^L", 51f, y, w, h, android.view.KeyEvent.KEYCODE_L));
-        list.add(ctrlKey("ctrlr_" + stamp, "^R", 75f, y, w, h, android.view.KeyEvent.KEYCODE_R));
-        return list;
-    }
-
-    public static List<KeyModel> buildCtrlEdit(ComponentContext ctx) {
-        List<KeyModel> list = new java.util.ArrayList<KeyModel>();
-        long stamp = ctx.stamp;
-        float w = 20f, h = 12f, y = 45f;
-        list.add(ctrlKey("ctrla_" + stamp, "^A", 3f, y, w, h, android.view.KeyEvent.KEYCODE_A));
-        list.add(ctrlKey("ctrle_" + stamp, "^E", 27f, y, w, h, android.view.KeyEvent.KEYCODE_E));
-        list.add(ctrlKey("ctrlu_" + stamp, "^U", 51f, y, w, h, android.view.KeyEvent.KEYCODE_U));
-        list.add(ctrlKey("ctrlk_" + stamp, "^K", 75f, y, w, h, android.view.KeyEvent.KEYCODE_K));
         return list;
     }
 }

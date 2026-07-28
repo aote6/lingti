@@ -10,6 +10,4 @@ public final class ComponentIds {
     public static final String BRACKETS = "brackets";
     public static final String FN_TEST = "fn_test";
     public static final String ESC = "esc";
-    public static final String CTRL_BASIC = "ctrl_basic";
-    public static final String CTRL_EDIT = "ctrl_edit";
 }

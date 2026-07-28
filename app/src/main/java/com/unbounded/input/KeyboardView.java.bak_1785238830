@@ -56,13 +56,6 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     private final List<Integer> panelEntryGroupIdx = new ArrayList<Integer>();
     private final List<String> panelEntryComponentId = new ArrayList<String>();
     private final List<Rect> panelEntryRects = new ArrayList<Rect>();
-    private int panelScrollY = 0;
-    private int panelContentH = 0;
-    private int panelViewportH = 0;
-    private int panelTouchStartY = 0;
-    private int panelTouchStartScroll = 0;
-    private boolean panelDragging = false;
-    private final Rect panelDrawRect = new Rect();
     private final String layoutFileName;
     private final String layoutStateName;
     private final Runnable onRestore;
@@ -273,16 +266,10 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         Paint text = ThemeTokens.newTextPaint();
         text.setTextSize(14f);
         text.setColor(ThemeTokens.TEXT_PRIMARY);
-        canvas.save();
-        canvas.clipRect(componentPanelBg);
         for (int i = 0; i < panelEntries.size(); i++) {
-            Rect r = panelEntryRects.get(i);
-            panelDrawRect.set(r.left, r.top - panelScrollY, r.right, r.bottom - panelScrollY);
-            if (panelDrawRect.bottom < componentPanelBg.top || panelDrawRect.top > componentPanelBg.bottom) continue;
-            canvas.drawRect(panelDrawRect, border);
-            drawCenteredText(canvas, panelDrawRect, panelEntries.get(i), text);
+            canvas.drawRect(panelEntryRects.get(i), border);
+            drawCenteredText(canvas, panelEntryRects.get(i), panelEntries.get(i), text);
         }
-        canvas.restore();
     }
 
     private void drawCenteredText(Canvas canvas, Rect rect, String label, Paint paint) {
@@ -360,55 +347,29 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         int x = (int) event.getX(), y = (int) event.getY();
 
         if (componentPanelOpen) {
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    panelTouchStartY = y;
-                    panelTouchStartScroll = panelScrollY;
-                    panelDragging = false;
-                    return true;
-                case MotionEvent.ACTION_MOVE: {
-                    int dy = panelTouchStartY - y;
-                    int slop = Math.round(8 * dpScale);
-                    if (!panelDragging && Math.abs(dy) > slop) {
-                        panelDragging = true;
-                    }
-                    if (panelDragging) {
-                        int maxScroll = Math.max(0, panelContentH - panelViewportH);
-                        panelScrollY = Math.max(0, Math.min(panelTouchStartScroll + dy, maxScroll));
-                        invalidate();
-                    }
-                    return true;
-                }
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    if (justOpenedComponentPanel) {
-                        justOpenedComponentPanel = false;
-                    } else if (!panelDragging && !componentPanelBg.contains(x, y)) {
-                        componentPanelOpen = false;
-                        expandedGroupIdx = -1;
-                    } else if (!panelDragging) {
-                        int hitY = y + panelScrollY;
-                        for (int i = 0; i < panelEntryRects.size(); i++) {
-                            if (panelEntryRects.get(i).contains(x, hitY)) {
-                                String compId = panelEntryComponentId.get(i);
-                                if (compId == null) {
-                                    // 点击的是分类标题，展开/折叠
-                                    expandedGroupIdx = (expandedGroupIdx == panelEntryGroupIdx.get(i)) ? -1 : panelEntryGroupIdx.get(i);
-                                    rebuildComponentPanelEntries();
-                                    layoutComponentPanelRects();
-                                } else {
-                                    // 点击的是具体组件
-                                    instantiateComponent(compId);
-                                    componentPanelOpen = false;
-                                    expandedGroupIdx = -1;
-                                }
-                                break;
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                if (justOpenedComponentPanel) {
+                    justOpenedComponentPanel = false;
+                } else {
+                    for (int i = 0; i < panelEntryRects.size(); i++) {
+                        if (panelEntryRects.get(i).contains(x, y)) {
+                            String compId = panelEntryComponentId.get(i);
+                            if (compId == null) {
+                                // 点击的是分类标题，展开/折叠
+                                expandedGroupIdx = (expandedGroupIdx == panelEntryGroupIdx.get(i)) ? -1 : panelEntryGroupIdx.get(i);
+                                rebuildComponentPanelEntries();
+                                layoutComponentPanelRects();
+                            } else {
+                                // 点击的是具体组件
+                                instantiateComponent(compId);
+                                componentPanelOpen = false;
+                                expandedGroupIdx = -1;
                             }
+                            break;
                         }
                     }
-                    panelDragging = false;
-                    invalidate();
-                    return true;
+                }
+                invalidate();
             }
             return true;
         }
@@ -421,7 +382,6 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
             if (editMode && componentButtonRect.contains(x, y)) {
                 componentPanelOpen = true;
                 justOpenedComponentPanel = true;
-                panelScrollY = 0;
                 invalidate();
                 return true;
             }
@@ -587,11 +547,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
             panelEntryRects.add(new Rect(panelX, panelY + i * itemH,
                     panelX + panelW, panelY + (i + 1) * itemH));
         }
-        panelContentH = itemH * Math.max(panelEntries.size(), 1);
-        int maxViewportH = getHeight() - panelY - Math.round(8 * dpScale);
-        panelViewportH = Math.min(panelContentH, Math.max(itemH, maxViewportH));
-        componentPanelBg.set(panelX, panelY, panelX + panelW, panelY + panelViewportH);
-        int maxScroll = Math.max(0, panelContentH - panelViewportH);
-        panelScrollY = Math.max(0, Math.min(panelScrollY, maxScroll));
+        int totalH = itemH * Math.max(panelEntries.size(), 1);
+        componentPanelBg.set(panelX, panelY, panelX + panelW, panelY + totalH);
     }
 }
