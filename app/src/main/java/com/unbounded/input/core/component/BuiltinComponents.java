@@ -446,8 +446,12 @@ public class BuiltinComponents {
         list.add(ctrlKey("selall_" + stamp, "全选", 3f, y, w, h, android.view.KeyEvent.KEYCODE_A));
         list.add(ctrlKey("editcopy_" + stamp, "复制", 27f, y, w, h, android.view.KeyEvent.KEYCODE_C));
         list.add(ctrlKey("editcut_" + stamp, "剪切", 51f, y, w, h, android.view.KeyEvent.KEYCODE_X));
-        list.add(ctrlKey("editpaste_" + stamp, "粘贴", 75f, y, w, h, android.view.KeyEvent.KEYCODE_V));
-        list.add(keyCodeKey("editdel_" + stamp, "删除", 40f, 60f, 20f, 12f, android.view.KeyEvent.KEYCODE_FORWARD_DEL));
+        KeyModel pasteKey = new KeyModel("editpaste_" + stamp, "粘贴", 0, 0, 0, 0, 0, true, 75f, y, w, h);
+        pasteKey.tap = KeyEventCommand.of(android.view.KeyEvent.KEYCODE_PASTE);
+        list.add(pasteKey);
+        KeyModel delKey = new KeyModel("editdel_" + stamp, "删除", 0, 0, 0, 0, 0, true, 40f, 60f, 20f, 12f);
+        delKey.tap = Command.backspace();
+        list.add(delKey);
         return list;
     }
 }
