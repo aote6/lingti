@@ -1,28 +1,35 @@
-# 灵体 (Lingti)
+Lingti - Programmable Android Input Panel Generator
 
-可编程的 Android 输入面板生成器。
+Not an input method. A tool for building your own keyboard panels.
 
-不是输入法。是让你自己拼键盘的工具。
+What it does
 
-## 核心玩法
+- Drag and drop buttons anywhere in edit mode to design your layout
+- Each button can insert text, send key events, paste clipboard, or trigger key chords (Ctrl+C etc.)
+- 3 independent layout slots, each saved separately and switchable at runtime
+- Component library: QWERTY full set, digits, arrow keys, Tab, Esc, Delete, Insert, Home, End, PageUp, PageDown, brackets, punctuation, operators, special symbols, and 11 Ctrl key chords
+- Save writes to local JSON file, restore resets to factory layout
 
-- 进入编辑模式，拖拽按钮到任意位置
-- 每个按钮可以绑定：插入文本、发送按键、粘贴、组合键
-- 3 个独立槽位，各自存盘、独立切换
-- 槽位1放Termux快捷键面板，槽位2放微信快捷回复，槽位3放代码片段
-- 点保存写入本地文件，点还原恢复出厂布局
+Architecture
 
-## 架构
+Touch -> GestureRecognizer -> KeyboardGestureController -> Command -> InputEngine -> InputConnection
 
-Touch → GestureRecognizer → KeyboardGestureController → Command → InputEngine → InputConnection
+Build
 
-## 构建
+Single developer, phone only (Huawei P20 + Termux), no PC, no IDE, no Gradle.
 
-bash build_simple.sh
-termux-open build/simple/unbounded-mvp.apk
+    bash build_simple.sh
+    APK auto-copied to ~/storage/downloads/unbounded-mvp.apk
 
-纯命令行构建，不需要Gradle。ecj → d8 → aapt → apksigner。
+Toolchain: ecj (Eclipse Compiler for Java) -> d8 (dex) -> aapt (resources) -> apksigner
 
-## 许可证
+Project structure
+
+    app/src/main/java/com/unbounded/input/          main source
+    app/src/main/java/com/unbounded/input/core/      layout, component, command subsystems
+    app/src/main/assets/default.json                 factory layout
+    build_simple.sh                                  build script
+
+License
 
 GPLv3
