@@ -23,11 +23,21 @@
 - 单人开发者，**只用手机（Huawei P20 + Termux）**，没有 PC、没有 IDE、没有 Android Studio。
 - 所有代码交互靠复制粘贴终端命令完成。
 - **不用 Gradle**，用手写脚本 `build_simple.sh` / `build_release.sh`：`ecj`（Eclipse 编译器）→ `aapt` 打资源 → `d8` 转 dex → `apksigner` 签名。
-- 编译命令：`bash build_simple.sh`，产物在 `build/simple/unbounded-mvp.apk`，装机用 `termux-open build/simple/unbounded-mvp.apk`。
+- 编译命令：`bash build_simple.sh`，产物在 `build/simple/unbounded-mvp.apk`，同时自动复制到 `~/storage/downloads/unbounded-mvp.apk`（手机本地Download目录），装机用文件管理器直接安装。
 - 项目路径：`~/lingti`（2026-07-22 从 `~/storage/shared/lingti` 迁移，缩短蛛网快照访问路径）
 - 打补丁的文件放 `~/lingti/.patches/`（这个目录已存在）。
 
 ## 改代码的工作流约定（严格遵守，不要自创别的方式）
+
+**推荐优先使用炉（lu_patch.py）操作 Java 文件**，命令格式：
+- 替换单行：`python3 ~/lu/core/lu_patch.py --anchor-line "锚点文本" 目标文件 --text-file 补丁文件`
+- 替换范围：`python3 ~/lu/core/lu_patch.py --anchor-before "起始锚点" --anchor-after "结束锚点" 目标文件 --text-file 补丁文件`
+- 整文件替换：`python3 ~/lu/core/lu_patch.py --whole-file 目标文件 --new-file 完整新文件`
+- 追加内容：`python3 ~/lu/core/lu_patch.py --append 目标文件 --text-file 补丁文件`
+- 回滚：`python3 ~/lu/core/lu_patch.py --rollback 目标文件`
+- 补丁文件统一放 `~/lu/.patches/` 目录
+- 多行内容必须走 `--text-file`，不能用 `--text`（会被拦截）
+- 每次写入自动快照、语法校验、记录日志
 
 1. **先看文件再改**：改任何文件前，先 `cat -n` 完整看一遍当前内容，不要凭记忆或凭猜测写 patch。这个项目历史上多次因为不同 AI 工具（Claude/DeepSeek/Gemini）对同一份代码有不同假设而踩坑。
 2. **Java 文件用 Python 脚本打补丁**，不要用 `sed` 做多行替换（正则容易匹配失败或误伤），模式固定为：
@@ -316,3 +326,22 @@ build_simple.sh 无需改动（Java 7 编译通过）
 - 组件库补上单个字母键模板
 - 两套剪贴板逻辑合并
 - 单独点选删除键
+
+
+## 2026-07-28 操作复盘：组件系统清理与接入
+
+### 做了什么
+- 打通组件注册：SimpleImeService.onCreate() 中调用 BuiltinComponents.registerAll()，组件面板不再为空
+- 瘦身 KeyboardView：7个 build* 方法 + dirKey/charKey 辅助方法迁移到 BuiltinComponents.java
+- 去掉过渡期残留：ComponentGroup 和 PanelEntry 内部类删除，ComponentRegistry 新增 getByCategory() 和 getCategories() 方法，组件面板直接基于注册表渲染
+- 构建脚本改进：编译后自动复制 APK 到 ~/storage/downloads/
+
+### 当前架构
+- ComponentRegistry（单例）：注册表，支持按 ID 实例化、按 Category 查询
+- BuiltinComponents：7个内置组件（QWERTY/数字/方向键/剪贴板+回车/括号/Fn/Esc）的注册入口和工厂方法
+- KeyboardView：从 670 行减到 549 行，只负责 View 渲染和触摸分发
+- 组件面板展开折叠逻辑基于 ComponentCategory 排序，点击分类标题展开/折叠
+
+### 编译产物
+- 路径：~/storage/downloads/unbounded-mvp.apk
+- 3个固定 warning（未使用变量），不影响功能
