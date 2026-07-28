@@ -18,6 +18,8 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.FrameLayout;
 import com.unbounded.input.core.layout.LayoutProfile;
+import com.unbounded.input.core.component.BuiltinComponents;
+import com.unbounded.input.core.component.ComponentRegistry;
 
 
 import java.io.File;
@@ -156,6 +158,7 @@ public class SimpleImeService extends InputMethodService {
         super.onCreate();
         prefs = getSharedPreferences("lingti_prefs", MODE_PRIVATE);
         applyThemeFromPrefs();
+        BuiltinComponents.registerAll(ComponentRegistry.getInstance());
         initClipboard();
         pasteManager = new PasteManager(focusHandler, prefs);
         log(this, "灵体终端键盘启动");
