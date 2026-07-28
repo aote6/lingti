@@ -9,7 +9,7 @@ import com.unbounded.input.core.command.KeyEventCommand;
 import com.unbounded.input.core.command.KeyChordCommand;
 
 public class InputEngine {
-    private static final String TAG = "InputEngine";
+    private static final String TAG = "ActionEngine";
 
     public static void execute(InputConnection ic, Command cmd) {
         if (ic == null || cmd == null) return;

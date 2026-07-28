@@ -1,4 +1,4 @@
-// 启动页：跳转系统输入法设置和灵体设置
+// 启动页：跳转系统面板设置和灵体设置
 package com.unbounded.input;
 
 import android.app.Activity;
@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(ThemeTokens.BG);
 
         TextView title = new TextView(this);
-        title.setText("灵体 输入法");
+        title.setText("灵体 面板");
         title.setTextSize(24);
         title.setTextColor(ThemeTokens.TEXT_PRIMARY);
         title.setGravity(Gravity.CENTER);
@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
         root.addView(desc);
 
         Button enableBtn = new Button(this);
-        enableBtn.setText("启用输入法");
+        enableBtn.setText("启用面板");
         enableBtn.setTextColor(ThemeTokens.BG);
         enableBtn.setBackgroundColor(ThemeTokens.TEXT_PRIMARY);
         enableBtn.setPadding(30, 15, 30, 15);

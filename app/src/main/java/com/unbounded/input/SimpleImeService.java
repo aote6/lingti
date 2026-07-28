@@ -1,4 +1,4 @@
-// IME服务入口：生命周期管理、键盘构建、剪贴板、日志
+// 面板服务入口：生命周期管理、键盘构建、剪贴板、日志
 package com.unbounded.input;
 
 import android.content.Context;
