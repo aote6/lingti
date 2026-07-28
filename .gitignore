@@ -7,3 +7,5 @@ build/
 local.properties
 *.keystore
 .gradle/
+.patches/
+*.bak
