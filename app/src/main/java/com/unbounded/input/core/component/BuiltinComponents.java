@@ -304,7 +304,7 @@ public class BuiltinComponents {
         list.add(charKey("p_period_" + stamp, '.', 22f, y1, w, h));
         list.add(charKey("p_semicolon_" + stamp, ';', 39f, y1, w, h));
         list.add(charKey("p_colon_" + stamp, ':', 56f, y1, w, h));
-        list.add(charKey("p_singleq_" + stamp, ''', 73f, y1, w, h));
+        list.add(charKey("p_singleq_" + stamp, '\'', 73f, y1, w, h));
         list.add(charKey("p_doubleq_" + stamp, '"', 86f, y1, w, h));
         list.add(charKey("p_exclaim_" + stamp, '!', 5f, y2, w, h));
         list.add(charKey("p_question_" + stamp, '?', 22f, y2, w, h));
