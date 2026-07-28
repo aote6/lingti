@@ -13,10 +13,12 @@ import java.util.ArrayList;
 import com.unbounded.input.core.component.ComponentContext;
 import com.unbounded.input.core.component.ComponentDescriptor;
 import com.unbounded.input.core.component.ComponentRegistry;
+import com.unbounded.input.core.component.ComponentCategory;
 import com.unbounded.input.core.layout.KeyModel;
 import com.unbounded.input.core.layout.KeyboardLayout;
 import com.unbounded.input.core.layout.LayoutManager;
 import com.unbounded.input.core.layout.LayoutProfile;
+import com.unbounded.input.core.layout.RowSpec;
 
 public class KeyboardView extends View implements KeyboardGestureController.SessionAccess {
     public interface SlotSwitchListener {
@@ -48,8 +50,10 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
     private Rect componentButtonRect = new Rect();
     private Rect componentPanelBg = new Rect();
     private int expandedGroupIdx = -1;
-    private final List<ComponentGroup> componentGroups = new ArrayList<ComponentGroup>();
-    private final List<PanelEntry> panelEntries = new ArrayList<PanelEntry>();
+    private final List<ComponentCategory> categoryList = new ArrayList<ComponentCategory>();
+    private final List<String> panelEntries = new ArrayList<String>();
+    private final List<Integer> panelEntryGroupIdx = new ArrayList<Integer>();
+    private final List<String> panelEntryComponentId = new ArrayList<String>();
     private final List<Rect> panelEntryRects = new ArrayList<Rect>();
     private final String layoutFileName;
     private final String layoutStateName;
@@ -263,7 +267,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         text.setColor(ThemeTokens.TEXT_PRIMARY);
         for (int i = 0; i < panelEntries.size(); i++) {
             canvas.drawRect(panelEntryRects.get(i), border);
-            drawCenteredText(canvas, panelEntryRects.get(i), panelEntries.get(i).text, text);
+            drawCenteredText(canvas, panelEntryRects.get(i), panelEntries.get(i), text);
         }
     }
 
@@ -348,15 +352,15 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
                 } else {
                     for (int i = 0; i < panelEntryRects.size(); i++) {
                         if (panelEntryRects.get(i).contains(x, y)) {
-                            PanelEntry hit = panelEntries.get(i);
-                            if (hit.itemIdx == -1) {
-                                expandedGroupIdx = (expandedGroupIdx == hit.groupIdx) ? -1 : hit.groupIdx;
+                            String compId = panelEntryComponentId.get(i);
+                            if (compId == null) {
+                                // 点击的是分类标题，展开/折叠
+                                expandedGroupIdx = (expandedGroupIdx == panelEntryGroupIdx.get(i)) ? -1 : panelEntryGroupIdx.get(i);
                                 rebuildComponentPanelEntries();
                                 layoutComponentPanelRects();
                             } else {
-                                ComponentGroup grp = componentGroups.get(hit.groupIdx);
-                                ComponentDescriptor desc = grp.items[hit.itemIdx];
-                                instantiateComponent(desc.getId());
+                                // 点击的是具体组件
+                                instantiateComponent(compId);
                                 componentPanelOpen = false;
                                 expandedGroupIdx = -1;
                             }
@@ -494,7 +498,7 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
 
     private void instantiateComponent(String componentId) {
         LayoutProfile profile = layoutManager.getProfile();
-        com.unbounded.input.core.layout.RowSpec newRow = new com.unbounded.input.core.layout.RowSpec();
+        RowSpec newRow = new RowSpec();
         long stamp = System.currentTimeMillis();
         ComponentContext ctx = new ComponentContext(stamp);
         List<KeyModel> keys = ComponentRegistry.getInstance().instantiate(componentId, ctx);
@@ -506,60 +510,24 @@ public class KeyboardView extends View implements KeyboardGestureController.Sess
         invalidate();
     }
 
-
-
-    private static class ComponentGroup {
-        final String category;
-        final ComponentDescriptor[] items;
-        ComponentGroup(String category, ComponentDescriptor[] items) {
-            this.category = category;
-            this.items = items;
-        }
-    }
-
-    private static class PanelEntry {
-        final int groupIdx;
-        final int itemIdx;
-        final String text;
-        PanelEntry(int groupIdx, int itemIdx, String text) {
-            this.groupIdx = groupIdx;
-            this.itemIdx = itemIdx;
-            this.text = text;
-        }
-    }
-
-    private void buildGroups() {
-        componentGroups.clear();
-        java.util.List<ComponentDescriptor> all = ComponentRegistry.getInstance().getAll();
-        com.unbounded.input.core.component.ComponentCategory currentCat = null;
-        java.util.List<ComponentDescriptor> currentItems = new java.util.ArrayList<ComponentDescriptor>();
-        for (ComponentDescriptor desc : all) {
-            if (currentCat != desc.getCategory()) {
-                if (currentCat != null && !currentItems.isEmpty()) {
-                    componentGroups.add(new ComponentGroup(currentCat.getDefaultLabel(),
-                            currentItems.toArray(new ComponentDescriptor[0])));
-                }
-                currentCat = desc.getCategory();
-                currentItems.clear();
-            }
-            currentItems.add(desc);
-        }
-        if (currentCat != null && !currentItems.isEmpty()) {
-            componentGroups.add(new ComponentGroup(currentCat.getDefaultLabel(),
-                    currentItems.toArray(new ComponentDescriptor[0])));
-        }
-    }
-
     private void rebuildComponentPanelEntries() {
-        buildGroups();
+        categoryList.clear();
+        categoryList.addAll(ComponentRegistry.getInstance().getCategories());
         panelEntries.clear();
-        for (int g = 0; g < componentGroups.size(); g++) {
-            ComponentGroup grp = componentGroups.get(g);
+        panelEntryGroupIdx.clear();
+        panelEntryComponentId.clear();
+        for (int g = 0; g < categoryList.size(); g++) {
+            ComponentCategory cat = categoryList.get(g);
             String arrow = (g == expandedGroupIdx) ? "v " : "> ";
-            panelEntries.add(new PanelEntry(g, -1, arrow + grp.category));
+            panelEntries.add(arrow + cat.getDefaultLabel());
+            panelEntryGroupIdx.add(g);
+            panelEntryComponentId.add(null); // null 表示这是分类标题
             if (g == expandedGroupIdx) {
-                for (int it = 0; it < grp.items.length; it++) {
-                    panelEntries.add(new PanelEntry(g, it, "    " + grp.items[it].getLabel()));
+                List<ComponentDescriptor> items = ComponentRegistry.getInstance().getByCategory(cat);
+                for (ComponentDescriptor desc : items) {
+                    panelEntries.add("    " + desc.getLabel());
+                    panelEntryGroupIdx.add(g);
+                    panelEntryComponentId.add(desc.getId());
                 }
             }
         }

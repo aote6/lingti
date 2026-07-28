@@ -47,4 +47,29 @@ public class ComponentRegistry {
 
     public synchronized boolean isInitialized() { return initialized; }
     public synchronized void markInitialized() { this.initialized = true; }
+
+    public synchronized List<ComponentDescriptor> getByCategory(ComponentCategory category) {
+        List<ComponentDescriptor> result = new ArrayList<ComponentDescriptor>();
+        for (ComponentDescriptor desc : descriptors.values()) {
+            if (desc.getCategory() == category) {
+                result.add(desc);
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public synchronized List<ComponentCategory> getCategories() {
+        java.util.Set<ComponentCategory> cats = new java.util.LinkedHashSet<ComponentCategory>();
+        for (ComponentDescriptor desc : descriptors.values()) {
+            cats.add(desc.getCategory());
+        }
+        List<ComponentCategory> sorted = new ArrayList<ComponentCategory>(cats);
+        java.util.Collections.sort(sorted, new java.util.Comparator<ComponentCategory>() {
+            @Override
+            public int compare(ComponentCategory a, ComponentCategory b) {
+                return Integer.compare(a.getSortOrder(), b.getSortOrder());
+            }
+        });
+        return Collections.unmodifiableList(sorted);
+    }
 }
